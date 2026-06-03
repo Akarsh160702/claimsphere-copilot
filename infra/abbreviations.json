@@ -1,0 +1,15 @@
+{
+  "resourcesResourceGroups": "rg-",
+  "managedIdentityUserAssignedIdentities": "id-",
+  "operationalInsightsWorkspaces": "log-",
+  "insightsComponents": "appi-",
+  "keyVaultVaults": "kv-",
+  "cognitiveServicesOpenAI": "oai-",
+  "cognitiveServicesDocumentIntelligence": "di-",
+  "searchSearchServices": "srch-",
+  "storageStorageAccounts": "st",
+  "containerRegistryRegistries": "cr",
+  "appManagedEnvironments": "cae-",
+  "appContainerApps": "ca-",
+  "webStaticSites": "stapp-"
+}

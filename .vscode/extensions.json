@@ -1,0 +1,14 @@
+{
+  // Recommended extensions. VS Code prompts to install these when the repo is
+  // opened on the company laptop. All are allowed even in locked-down setups
+  // (they're editor extensions, not system installs).
+  "recommendations": [
+    "GitHub.copilot",
+    "GitHub.copilot-chat",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "GitHub.vscode-pull-request-github"
+  ]
+}

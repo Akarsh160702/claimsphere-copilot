@@ -1,0 +1,51 @@
+{
+  // ===========================================================================
+  // ClaimSphere Copilot — GitHub Codespaces / Dev Container
+  //
+  // WHY THIS EXISTS:
+  //   On your company laptop, Python / Node / npm / admin are blocked. A
+  //   Codespace runs this whole environment IN THE CLOUD and connects from your
+  //   browser (or VS Code). It already has Python 3.11, Node 20, and the GitHub
+  //   CLI. You get a real terminal where `pip`, `npm`, and `uvicorn` all work —
+  //   no local install, no admin.
+  //
+  // HOW TO USE (company laptop, browser only):
+  //   GitHub repo -> green "Code" button -> "Codespaces" tab -> "Create codespace".
+  //   Wait ~2 min for setup, then in the terminal:
+  //     Backend : uvicorn backend.main:app --reload --port 8000
+  //     Frontend: cd frontend && npm run dev
+  //   Codespaces forwards both ports and gives you clickable preview URLs.
+  // ===========================================================================
+  "name": "ClaimSphere Copilot",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
+
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  // Installs Python + frontend deps once when the Codespace is created.
+  "postCreateCommand": "pip install --no-cache-dir -r requirements.txt && (cd frontend && npm install)",
+
+  "forwardPorts": [8000, 5173, 8501],
+  "portsAttributes": {
+    "8000": { "label": "FastAPI backend" },
+    "5173": { "label": "React frontend (Vite)" },
+    "8501": { "label": "Streamlit demo (backup UI)" }
+  },
+
+  "customizations": {
+    "vscode": {
+      // These extensions auto-install in the Codespace — including Copilot,
+      // so your AI assist works there just like on the locked laptop.
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "GitHub.copilot",
+        "GitHub.copilot-chat"
+      ]
+    }
+  }
+}

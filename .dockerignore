@@ -1,0 +1,16 @@
+# Keep the API image small and fast to build
+frontend
+node_modules
+**/__pycache__
+**/*.pyc
+.venv
+venv
+.git
+.github
+.azure
+tests
+infra
+power-platform
+*.md
+ppt.pdf
+streamlit_app.py

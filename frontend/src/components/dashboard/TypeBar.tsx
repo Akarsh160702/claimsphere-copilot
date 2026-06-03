@@ -1,0 +1,31 @@
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { palette } from "@/theme/tokens";
+import { chartTooltipStyle } from "./chartTheme";
+import type { DashboardMetrics } from "@/api/types";
+
+const TYPE_COLORS: Record<string, string> = {
+  Health: palette.brand,
+  Motor: "#9B6DFF",
+  Property: "#22D3EE",
+  Travel: palette.warning,
+};
+
+export function TypeBar({ metrics }: { metrics: DashboardMetrics }) {
+  const data = Object.entries(metrics.byType).map(([name, value]) => ({ name, value }));
+
+  return (
+    <ResponsiveContainer width="100%" height={210}>
+      <BarChart data={data} margin={{ top: 12, right: 8, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+        <XAxis dataKey="name" tick={{ fill: palette.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fill: palette.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={32} />
+        <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+        <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={48}>
+          {data.map((d) => (
+            <Cell key={d.name} fill={TYPE_COLORS[d.name] ?? palette.brand} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}

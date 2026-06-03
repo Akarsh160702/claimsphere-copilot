@@ -1,0 +1,12 @@
+# Normalize line endings. CI runs on Linux; CRLF in YAML/shell breaks runners.
+* text=auto eol=lf
+
+# Windows-only files keep CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary — never touch
+*.png binary
+*.jpg binary
+*.pdf binary
+*.ico binary

@@ -1,0 +1,33 @@
+{
+  "policy_id": "POL-MOTOR-001",
+  "policy_type": "Motor",
+  "holder_name": "Priya Nair",
+  "holder_id": "CUST-002",
+  "vehicle_number": "TN09AB1234",
+  "vehicle_make": "Honda City",
+  "vehicle_year": 2020,
+  "sum_insured": 850000.0,
+  "premium": 22000.0,
+  "deductible": 2000.0,
+  "start_date": "2024-03-01",
+  "end_date": "2026-02-28",
+  "waiting_period_days": 0,
+  "coverage_details": {
+    "own_damage": true,
+    "third_party_liability": true,
+    "personal_accident": true,
+    "theft": true,
+    "fire": true,
+    "natural_calamities": true,
+    "zero_depreciation": false
+  },
+  "exclusions": [
+    "Drunk driving",
+    "Driving without valid license",
+    "Intentional damage",
+    "Mechanical breakdown",
+    "Wear and tear",
+    "Racing or speed testing"
+  ],
+  "ncb_discount": 20
+}

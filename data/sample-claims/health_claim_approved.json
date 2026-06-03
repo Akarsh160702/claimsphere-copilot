@@ -1,0 +1,16 @@
+{
+  "policy_id": "POL-HEALTH-001",
+  "claimant": {
+    "name": "Rahul Sharma",
+    "email": "rahul.sharma@demo.com",
+    "phone": "+91-9876543210",
+    "id_number": "XXXX-XXXX-1234",
+    "address": "42, Anna Nagar, Chennai - 600040"
+  },
+  "claim_type": "Health",
+  "claim_amount": 85000.0,
+  "incident_date": "2024-05-15",
+  "description": "Hospitalized at Apollo Hospitals Chennai for Acute Appendicitis. Underwent laparoscopic surgery on 15th May 2024. Discharged on 20th May 2024. Total hospital bill including surgery, medicines, and lab tests.",
+  "channel": "Web",
+  "document_urls": []
+}

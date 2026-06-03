@@ -1,0 +1,17 @@
+// User-assigned managed identity used by the backend container app to access
+// Azure OpenAI, Document Intelligence, AI Search, Storage, Key Vault and ACR
+// without any secrets (passwordless auth via DefaultAzureCredential).
+param location string
+param tags object
+param identityName string
+
+resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: identityName
+  location: location
+  tags: tags
+}
+
+output id string = identity.id
+output name string = identity.name
+output principalId string = identity.properties.principalId
+output clientId string = identity.properties.clientId

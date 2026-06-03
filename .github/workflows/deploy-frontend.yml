@@ -1,0 +1,62 @@
+# =============================================================================
+# ClaimSphere Copilot — Frontend deploy (Vite/React -> Azure Static Web Apps)
+#
+# WHY THIS EXISTS:
+#   Your company laptop cannot run `npm install` / `npm run build`. This workflow
+#   builds the React app on GitHub's cloud runner and publishes it to Azure
+#   Static Web Apps. On the laptop you only edit + commit + push.
+#
+# WHAT TRIGGERS IT:
+#   Pushes to `main` touching frontend code, and pull requests (PRs get a free
+#   temporary preview URL — great for reviewing UI changes before merge).
+#
+# ONE-TIME SETUP (from the Azure Portal browser — see COMPANY-LAPTOP-WORKFLOW.md):
+#   Create the Static Web App, copy its "Deployment token", then add it as a
+#   repo secret:
+#     Repo -> Settings -> Secrets and variables -> Actions -> New secret
+#       AZURE_STATIC_WEB_APPS_API_TOKEN = <deployment token>
+# =============================================================================
+name: Deploy frontend (Static Web Apps)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/deploy-frontend.yml"
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - "frontend/**"
+
+jobs:
+  build_and_deploy:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Build and deploy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The SWA action installs deps and runs the Vite build for us, in the cloud.
+      - name: Build and deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: "frontend"        # where package.json lives
+          output_location: "dist"         # Vite build output
+          # api_location left empty — backend runs on Container Apps, not SWA.
+
+  close_pull_request:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close PR preview
+    steps:
+      - name: Close preview environment
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: close

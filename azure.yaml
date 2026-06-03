@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+#
+# Azure Developer CLI (azd) manifest for ClaimSphere Copilot.
+# `azd up` provisions the infra (infra/main.bicep) and deploys both services.
+name: claimsphere-copilot
+metadata:
+  template: claimsphere-copilot@1.0.0
+
+services:
+  # FastAPI backend -> Azure Container Apps (image built from ./Dockerfile)
+  api:
+    project: .
+    language: py
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+      context: .
+      remoteBuild: true
+
+  # React/Vite frontend -> Azure Static Web Apps (built output in frontend/dist)
+  web:
+    project: ./frontend
+    language: js
+    host: staticwebapp
+    dist: dist

@@ -1,0 +1,29 @@
+{
+  "policy_id": "POL-HEALTH-001",
+  "policy_type": "Health",
+  "holder_name": "Rahul Sharma",
+  "holder_id": "CUST-001",
+  "sum_insured": 500000.0,
+  "premium": 15000.0,
+  "deductible": 5000.0,
+  "start_date": "2024-01-01",
+  "end_date": "2026-12-31",
+  "waiting_period_days": 30,
+  "coverage_details": {
+    "hospitalization": true,
+    "day_care": true,
+    "pre_hospitalization_days": 30,
+    "post_hospitalization_days": 60,
+    "room_rent_limit": 5000,
+    "icu_limit": 10000,
+    "ambulance_cover": 2000
+  },
+  "exclusions": [
+    "Cosmetic surgery",
+    "Self-inflicted injuries",
+    "War and terrorism",
+    "Pre-existing conditions within first 2 years",
+    "Dental treatment unless accidental",
+    "Vision correction spectacles or lenses"
+  ]
+}

@@ -1,0 +1,75 @@
+# =============================================================================
+# ClaimSphere Copilot — Backend deploy (FastAPI -> Azure Container Apps)
+#
+# WHY THIS EXISTS:
+#   Your company laptop cannot build Docker images, run `az`, or install tools.
+#   This workflow runs entirely on GitHub's cloud runners. The image is built
+#   server-side (by Azure Container Registry's cloud build) and deployed to your
+#   Container App. On the company laptop you only edit + commit + push.
+#
+# WHAT TRIGGERS IT:
+#   Any push to `main` that touches backend code, the Dockerfile, or this file.
+#   You can also run it manually from the GitHub "Actions" tab (workflow_dispatch).
+#
+# ONE-TIME SETUP (done once from the Azure Portal browser — see
+# COMPANY-LAPTOP-WORKFLOW.md for click-by-click steps):
+#   Repo -> Settings -> Secrets and variables -> Actions, add:
+#     Secrets:
+#       AZURE_CLIENT_ID        (service principal app id, federated/OIDC)
+#       AZURE_TENANT_ID        (your company tenant id)
+#       AZURE_SUBSCRIPTION_ID  (your company subscription id)
+#     Variables:
+#       AZURE_RESOURCE_GROUP   e.g. rg-claimsphere-hack
+#       ACR_NAME               your Azure Container Registry name (no domain)
+#       CONTAINERAPP_NAME      e.g. ca-claimsphere-api
+# =============================================================================
+name: Deploy backend (Container Apps)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "data/**"
+      - "requirements.txt"
+      - "Dockerfile"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch: {}
+
+# OIDC login needs these permissions (no long-lived passwords stored).
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC — no secrets/passwords)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Builds the image in Azure (ACR cloud build) and deploys it to the
+      # Container App. Nothing is built on your laptop or even on the runner.
+      - name: Build image in ACR and deploy to Container Apps
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}
+          dockerfilePath: Dockerfile
+          acrName: ${{ vars.ACR_NAME }}
+          containerAppName: ${{ vars.CONTAINERAPP_NAME }}
+          resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP }}
+          imageToBuild: ${{ vars.ACR_NAME }}.azurecr.io/claimsphere-api:${{ github.sha }}
+          # App settings/secrets (OpenAI keys etc.) are configured ONCE on the
+          # Container App in the portal — they persist across deploys, so we do
+          # not pass them here.
