@@ -7,10 +7,11 @@ import { AgentMonitor } from "@/pages/AgentMonitor";
 import { PolicySearch } from "@/pages/PolicySearch";
 import { ReviewQueue } from "@/pages/ReviewQueue";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
-import { useBackendHealth } from "@/hooks/useClaimsData";
+import { useBackendHealth, useClaimsData } from "@/hooks/useClaimsData";
 
 export default function App() {
   useBackendHealth();
+  useClaimsData(); // keeps dataSource ("live"/"synthetic") accurate on all pages
 
   return (
     <Routes>
