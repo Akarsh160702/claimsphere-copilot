@@ -90,10 +90,15 @@ class DocumentIntelligenceClient:
     def _get_client(self):
         if self._client is None and not self.settings.demo_mode:
             from azure.ai.documentintelligence import DocumentIntelligenceClient
-            from azure.core.credentials import AzureKeyCredential
+            if self.settings.doc_intelligence_key:
+                from azure.core.credentials import AzureKeyCredential
+                credential = AzureKeyCredential(self.settings.doc_intelligence_key)
+            else:
+                from azure.identity import DefaultAzureCredential
+                credential = DefaultAzureCredential()
             self._client = DocumentIntelligenceClient(
                 endpoint=self.settings.doc_intelligence_endpoint,
-                credential=AzureKeyCredential(self.settings.doc_intelligence_key),
+                credential=credential,
             )
         return self._client
 

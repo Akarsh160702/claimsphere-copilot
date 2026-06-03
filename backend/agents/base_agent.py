@@ -10,9 +10,20 @@ logger = structlog.get_logger()
 
 def get_openai_client() -> AsyncAzureOpenAI:
     settings = get_settings()
+    if settings.azure_openai_api_key:
+        return AsyncAzureOpenAI(
+            azure_endpoint=settings.azure_openai_endpoint,
+            api_key=settings.azure_openai_api_key,
+            api_version=settings.azure_openai_api_version,
+        )
+    # Managed identity path (Container Apps in production — no API key stored)
+    from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
+    token_provider = get_bearer_token_provider(
+        DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
+    )
     return AsyncAzureOpenAI(
         azure_endpoint=settings.azure_openai_endpoint,
-        api_key=settings.azure_openai_api_key,
+        azure_ad_token_provider=token_provider,
         api_version=settings.azure_openai_api_version,
     )
 

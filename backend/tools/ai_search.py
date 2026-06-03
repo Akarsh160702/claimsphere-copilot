@@ -127,14 +127,20 @@ class AISearchClient:
         self._search_client = None
         self._index_client = None
 
+    def _get_credential(self):
+        if self.settings.search_admin_key:
+            from azure.core.credentials import AzureKeyCredential
+            return AzureKeyCredential(self.settings.search_admin_key)
+        from azure.identity import DefaultAzureCredential
+        return DefaultAzureCredential()
+
     def _get_search_client(self):
         if self._search_client is None and not self.settings.demo_mode:
             from azure.search.documents import SearchClient
-            from azure.core.credentials import AzureKeyCredential
             self._search_client = SearchClient(
                 endpoint=self.settings.search_endpoint,
                 index_name=self.settings.search_index_name,
-                credential=AzureKeyCredential(self.settings.search_admin_key),
+                credential=self._get_credential(),
             )
         return self._search_client
 
@@ -188,11 +194,10 @@ class AISearchClient:
 
         try:
             from azure.search.documents import SearchClient
-            from azure.core.credentials import AzureKeyCredential
             client = SearchClient(
                 endpoint=self.settings.search_endpoint,
                 index_name=self.settings.search_index_name,
-                credential=AzureKeyCredential(self.settings.search_admin_key),
+                credential=self._get_credential(),
             )
             result = client.upload_documents(documents=[policy])
             return result[0].succeeded

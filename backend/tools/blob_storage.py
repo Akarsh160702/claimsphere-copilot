@@ -16,9 +16,17 @@ class BlobStorageClient:
     def _get_client(self):
         if self._client is None and not self.settings.demo_mode:
             from azure.storage.blob import BlobServiceClient
-            self._client = BlobServiceClient.from_connection_string(
-                self.settings.storage_connection_string
-            )
+            if self.settings.storage_connection_string:
+                self._client = BlobServiceClient.from_connection_string(
+                    self.settings.storage_connection_string
+                )
+            else:
+                # Managed identity path (Container Apps — AZURE_STORAGE_BLOB_ENDPOINT set)
+                from azure.identity import DefaultAzureCredential
+                self._client = BlobServiceClient(
+                    account_url=self.settings.storage_blob_endpoint,
+                    credential=DefaultAzureCredential(),
+                )
         return self._client
 
     async def upload_document(
@@ -68,22 +76,40 @@ class BlobStorageClient:
             return blob_url + "?sas=demo"
 
         try:
-            from azure.storage.blob import generate_blob_sas, BlobSasPermissions
-            from datetime import datetime, timedelta
+            from datetime import datetime, timezone, timedelta
+            expiry = datetime.now(timezone.utc) + timedelta(hours=expiry_hours)
             parts = blob_url.split("/")
             account_name = parts[2].split(".")[0]
             container_name = parts[3]
             blob_name = "/".join(parts[4:])
+
             client = self._get_client()
-            account_key = client.credential.account_key
-            sas = generate_blob_sas(
-                account_name=account_name,
-                container_name=container_name,
-                blob_name=blob_name,
-                account_key=account_key,
-                permission=BlobSasPermissions(read=True),
-                expiry=datetime.utcnow() + timedelta(hours=expiry_hours),
-            )
+            if self.settings.storage_connection_string:
+                # Key-based SAS (local dev)
+                from azure.storage.blob import generate_blob_sas, BlobSasPermissions
+                sas = generate_blob_sas(
+                    account_name=account_name,
+                    container_name=container_name,
+                    blob_name=blob_name,
+                    account_key=client.credential.account_key,
+                    permission=BlobSasPermissions(read=True),
+                    expiry=expiry,
+                )
+            else:
+                # User-delegation SAS (managed identity in Container Apps)
+                from azure.storage.blob import generate_blob_sas, BlobSasPermissions
+                udk = client.get_user_delegation_key(
+                    key_start_time=datetime.now(timezone.utc),
+                    key_expiry_time=expiry,
+                )
+                sas = generate_blob_sas(
+                    account_name=account_name,
+                    container_name=container_name,
+                    blob_name=blob_name,
+                    user_delegation_key=udk,
+                    permission=BlobSasPermissions(read=True),
+                    expiry=expiry,
+                )
             return f"{blob_url}?{sas}"
         except Exception as e:
             logger.error("sas_generation_failed", error=str(e))
