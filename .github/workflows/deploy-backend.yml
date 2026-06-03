@@ -1,27 +1,15 @@
 # =============================================================================
 # ClaimSphere Copilot — Backend deploy (FastAPI -> Azure Container Apps)
 #
-# WHY THIS EXISTS:
-#   Your company laptop cannot build Docker images, run `az`, or install tools.
-#   This workflow runs entirely on GitHub's cloud runners. The image is built
-#   server-side (by Azure Container Registry's cloud build) and deployed to your
-#   Container App. On the company laptop you only edit + commit + push.
+# Build strategy: GitHub-runner Docker build + direct ACR push (no ACR Tasks).
+# ACR Tasks (remote build) is blocked on hackathon/lab subscriptions. This
+# workflow builds on the free GitHub runner and pushes the image to ACR, then
+# tells the Container App to use the new image. No local tooling required.
 #
-# WHAT TRIGGERS IT:
-#   Any push to `main` that touches backend code, the Dockerfile, or this file.
-#   You can also run it manually from the GitHub "Actions" tab (workflow_dispatch).
-#
-# ONE-TIME SETUP (done once from the Azure Portal browser — see
-# COMPANY-LAPTOP-WORKFLOW.md for click-by-click steps):
-#   Repo -> Settings -> Secrets and variables -> Actions, add:
-#     Secrets:
-#       AZURE_CLIENT_ID        (service principal app id, federated/OIDC)
-#       AZURE_TENANT_ID        (your company tenant id)
-#       AZURE_SUBSCRIPTION_ID  (your company subscription id)
-#     Variables:
-#       AZURE_RESOURCE_GROUP   e.g. rg-claimsphere-hack
-#       ACR_NAME               your Azure Container Registry name (no domain)
-#       CONTAINERAPP_NAME      e.g. ca-claimsphere-api
+# ONE-TIME SETUP (browser only — see COMPANY-LAPTOP-WORKFLOW.md §2.3/2.4):
+#   Repo -> Settings -> Secrets and variables -> Actions
+#     Secrets:  AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+#     Variables: AZURE_RESOURCE_GROUP, ACR_NAME, CONTAINERAPP_NAME
 # =============================================================================
 name: Deploy backend (Container Apps)
 
@@ -36,7 +24,6 @@ on:
       - ".github/workflows/deploy-backend.yml"
   workflow_dispatch: {}
 
-# OIDC login needs these permissions (no long-lived passwords stored).
 permissions:
   id-token: write
   contents: read
@@ -46,30 +33,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Azure login (OIDC — no secrets/passwords)
+      - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Builds the image in Azure (ACR cloud build) and deploys it to the
-      # Container App. Nothing is built on your laptop or even on the runner.
-      - name: Build image in ACR and deploy to Container Apps
-        uses: azure/container-apps-deploy-action@v2
+      # Log in to ACR directly (token from az login — no ACR Tasks used)
+      - name: Log in to Azure Container Registry
+        run: az acr login --name ${{ vars.ACR_NAME }}
+
+      # Build the image on the GitHub runner and push it directly to ACR.
+      # This avoids ACR Tasks entirely — works on all subscription types.
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
         with:
-          appSourcePath: ${{ github.workspace }}
-          dockerfilePath: Dockerfile
-          acrName: ${{ vars.ACR_NAME }}
-          containerAppName: ${{ vars.CONTAINERAPP_NAME }}
-          resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP }}
-          imageToBuild: ${{ vars.ACR_NAME }}.azurecr.io/claimsphere-api:${{ github.sha }}
-          # App settings/secrets (OpenAI keys etc.) are configured ONCE on the
-          # Container App in the portal — they persist across deploys, so we do
-          # not pass them here.
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ vars.ACR_NAME }}.azurecr.io/claimsphere-api:${{ github.sha }},${{ vars.ACR_NAME }}.azurecr.io/claimsphere-api:latest
+          cache-from: type=registry,ref=${{ vars.ACR_NAME }}.azurecr.io/claimsphere-api:latest
+          cache-to: type=inline
+
+      # Update the Container App to use the freshly-built image
+      - name: Update Container App image
+        run: |
+          az containerapp update \
+            --name ${{ vars.CONTAINERAPP_NAME }} \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+            --image ${{ vars.ACR_NAME }}.azurecr.io/claimsphere-api:${{ github.sha }}
+
+      - name: Print deployed URL
+        run: |
+          URL=$(az containerapp show \
+            --name ${{ vars.CONTAINERAPP_NAME }} \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "Backend live at: https://$URL"
