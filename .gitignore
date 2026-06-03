@@ -1,7 +1,10 @@
 # --- Secrets (NEVER commit) ---
 .env
-.env.*
+.env.local
+.env.*.local
 !.env.example
+!.env.production
+!frontend/.env.production
 *.pem
 *.key
 

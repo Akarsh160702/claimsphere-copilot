@@ -40,6 +40,16 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("policy_seeding_failed", error=str(e))
 
+    # Pre-populate the in-memory claims store so the dashboard shows live
+    # data immediately on a cold start (no LLM calls — instant).
+    try:
+        from backend.api.claims import _processing_contexts
+        from backend.data_seeder import seed_demo_claims
+        if not _processing_contexts:  # Only seed if store is empty
+            seed_demo_claims(_processing_contexts)
+    except Exception as e:
+        logger.warning("demo_claims_seeding_failed", error=str(e))
+
     yield
     logger.info("claimsphere_shutting_down")
 
