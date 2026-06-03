@@ -237,7 +237,7 @@ class AdjudicationAgent(BaseAgent):
         )
         result = json.loads(raw)
 
-        decision_str = result.get("decision", "Escalate")
+        decision_str = result.get("decision", "Escalate").title()
         decision = Decision(decision_str)
 
         context.adjudication_result = AdjudicationResult(

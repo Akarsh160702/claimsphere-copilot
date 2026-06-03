@@ -75,8 +75,9 @@ class RouterAgent(BaseAgent):
                 response_format={"type": "json_object"},
             )
             result = json.loads(raw)
-            context.claim_type = ClaimType(result.get("claim_type", "Health"))
-            context.priority = ClaimPriority(result.get("priority", "MEDIUM"))
+            context.claim_type = ClaimType(result.get("claim_type", "Health").title())
+            priority_raw = result.get("priority", "Medium")
+            context.priority = ClaimPriority(priority_raw.title())
             context.add_audit(
                 agent_name=self.name,
                 action="CLAIM_CLASSIFIED",
