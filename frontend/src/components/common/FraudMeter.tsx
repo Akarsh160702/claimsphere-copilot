@@ -2,7 +2,7 @@ import { fraudColor } from "@/theme/tokens";
 
 interface FraudMeterProps {
   score: number;
-  width?: number;
+  width?: number | string;
 }
 
 /** Compact horizontal fraud-score bar with semantic coloring. */

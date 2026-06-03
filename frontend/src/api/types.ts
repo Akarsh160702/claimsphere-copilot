@@ -104,6 +104,45 @@ export interface SupportAnswer {
   [k: string]: unknown;
 }
 
+export interface ValidationResult {
+  is_valid: boolean;
+  policy_active: boolean;
+  claim_type_covered: boolean;
+  within_sum_insured: boolean;
+  deductible_applicable: boolean;
+  exclusions_hit: string[];
+  coverage_amount: number;
+  deductible_amount: number;
+  validation_notes: string;
+  confidence: number;
+}
+
+export interface MissingInfoResult {
+  has_missing_info: boolean;
+  missing_fields: string[];
+  follow_up_message: string;
+  follow_up_channel: string;
+}
+
+/** Full claim context returned by GET /claims/{id}/full */
+export interface ClaimFull {
+  claim_id: string;
+  submission: ClaimSubmission;
+  claim_type: ClaimType | null;
+  priority: ClaimPriority;
+  status: ClaimStatus;
+  policy_data: Record<string, unknown> | null;
+  extracted_documents: unknown[];
+  validation_result: ValidationResult | null;
+  fraud_result: FraudResult | null;
+  missing_info_result: MissingInfoResult | null;
+  adjudication_result: AdjudicationResult | null;
+  audit_trail: AuditEntry[];
+  created_at: string;
+  updated_at: string;
+  error: string | null;
+}
+
 /** Aggregated KPIs computed from the claim list. */
 export interface DashboardMetrics {
   total: number;

@@ -2,6 +2,7 @@ import { apiClient, FORCE_DEMO } from "./client";
 import { generateSyntheticClaims } from "./synthetic";
 import type {
   ClaimListItem,
+  ClaimFull,
   ClaimSubmission,
   ClaimResponse,
   HealthResponse,
@@ -58,6 +59,52 @@ export async function submitClaim(
 ): Promise<ClaimResponse> {
   const res = await apiClient.post<ClaimResponse>("/claims/submit", submission);
   return res.data;
+}
+
+export async function fetchClaimFull(id: string): Promise<ClaimFull> {
+  const res = await apiClient.get<ClaimFull>(`/claims/${id}/full`);
+  return res.data;
+}
+
+export async function recordHumanDecision(
+  claimId: string,
+  decision: "Approve" | "Reject" | "MoreInfo",
+  notes: string,
+  reviewer: string,
+): Promise<{ claim_id: string; decision: string; status: string }> {
+  const res = await apiClient.post(`/claims/${claimId}/human-decision`, {
+    decision,
+    notes,
+    reviewer,
+  });
+  return res.data;
+}
+
+export async function uploadDocument(
+  file: File,
+  claimId: string,
+  documentType: string,
+): Promise<{ blob_url: string; doc_id: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("claim_id", claimId);
+  form.append("document_type", documentType);
+  const res = await apiClient.post("/documents/upload", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
+export async function submitClaimSync(submission: ClaimSubmission): Promise<ClaimFull> {
+  const res = await apiClient.post<ClaimFull>("/claims/submit/sync", submission, {
+    timeout: 90000,
+  });
+  return res.data;
+}
+
+export async function fetchPolicies(): Promise<Record<string, unknown>[]> {
+  const res = await apiClient.get("/mock/policies");
+  return Array.isArray(res.data) ? res.data : [];
 }
 
 export async function askSupport(
