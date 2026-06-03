@@ -46,10 +46,11 @@ class BlobStorageClient:
             container = client.get_container_client(self.settings.storage_container_name)
             blob_name = f"{claim_id}/{uuid.uuid4()}-{filename}"
             blob_client = container.get_blob_client(blob_name)
+            from azure.storage.blob import ContentSettings
             blob_client.upload_blob(
                 file_bytes,
                 blob_type="BlockBlob",
-                content_settings={"content_type": content_type},
+                content_settings=ContentSettings(content_type=content_type),
                 overwrite=True,
             )
             return blob_client.url
@@ -64,7 +65,11 @@ class BlobStorageClient:
 
         try:
             from azure.storage.blob import BlobClient
-            blob_client = BlobClient.from_blob_url(blob_url)
+            if self.settings.storage_connection_string:
+                blob_client = BlobClient.from_blob_url(blob_url)
+            else:
+                from azure.identity import DefaultAzureCredential
+                blob_client = BlobClient.from_blob_url(blob_url, credential=DefaultAzureCredential())
             stream = blob_client.download_blob()
             return stream.readall()
         except Exception as e:
