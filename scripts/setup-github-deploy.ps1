@@ -31,11 +31,15 @@ az role assignment create `
     --scope $AcrId
 
 Write-Host "`n[4/5] Adding OIDC federated credential for GitHub Actions..." -ForegroundColor Cyan
+# Use ${} around variables that are immediately followed by a colon,
+# otherwise PowerShell treats the colon as a PS-drive separator and
+# drops the variable value (e.g. $GitHubRepo:ref -> "")
+$FedSubject = "repo:${GitHubRepo}:ref:refs/heads/${Branch}"
 $FedParams = @"
 {
-  "name": "github-$Branch",
+  "name": "github-${Branch}",
   "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:$GitHubRepo:ref:refs/heads/$Branch",
+  "subject": "$FedSubject",
   "audiences": ["api://AzureADTokenExchange"]
 }
 "@
