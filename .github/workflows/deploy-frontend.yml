@@ -26,6 +26,7 @@ on:
       - ".github/workflows/deploy-frontend.yml"
   pull_request:
     branches: [master]
+  workflow_dispatch: {}
     types: [opened, synchronize, reopened, closed]
     paths:
       - "frontend/**"
