@@ -20,12 +20,12 @@ name: Deploy frontend (Static Web Apps)
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - "frontend/**"
       - ".github/workflows/deploy-frontend.yml"
   pull_request:
-    branches: [main]
+    branches: [master]
     types: [opened, synchronize, reopened, closed]
     paths:
       - "frontend/**"

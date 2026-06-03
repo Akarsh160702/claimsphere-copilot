@@ -15,7 +15,7 @@ name: Deploy backend (Container Apps)
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - "backend/**"
       - "data/**"
