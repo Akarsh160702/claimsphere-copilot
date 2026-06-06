@@ -80,6 +80,27 @@ export function ClaimDetail() {
         </button>
         <StatusBadge value={claim.status ?? "Processing"} />
         {adj?.decision && <StatusBadge value={adj.decision} />}
+        {needsReview && (
+          <span
+            title="A Teams Adaptive Card was sent to the review channel via Power Automate"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "4px 11px",
+              borderRadius: 999,
+              fontSize: 11.5,
+              fontWeight: 600,
+              color: "#5B5FC7",
+              background: "rgba(91,95,199,0.14)",
+              border: "1px solid rgba(91,95,199,0.35)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#5B5FC7" }} />
+            Teams notified
+          </span>
+        )}
       </div>
 
       {/* ── Top metrics row ── */}

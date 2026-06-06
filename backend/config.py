@@ -39,8 +39,13 @@ class Settings(BaseSettings):
     dataverse_client_secret: str = Field(default="", alias="DATAVERSE_CLIENT_SECRET")
     dataverse_tenant_id: str = Field(default="", alias="DATAVERSE_TENANT_ID")
 
-    # Power Automate
+    # Power Automate / Teams
     power_automate_webhook_url: str = Field(default="", alias="POWER_AUTOMATE_WEBHOOK_URL")
+    # The public URL of this API — used to build the Teams card callback URLs
+    api_base_url: str = Field(
+        default="https://ca-api-u5aqvvvbt34hq.politecliff-7ae23c60.eastus.azurecontainerapps.io",
+        alias="API_BASE_URL",
+    )
 
     # App
     app_env: str = Field(default="development", alias="APP_ENV")

@@ -18,6 +18,7 @@ from backend.agents.fraud_agent import FraudAgent
 from backend.agents.adjudication_agent import AdjudicationAgent
 from backend.tools.dataverse import DataverseClient
 from backend.tools.mock_integrations import MockNotificationClient, MockPaymentClient
+from backend.tools.power_automate import notify_escalation, notify_decision
 from backend.config import get_settings
 
 logger = structlog.get_logger()
@@ -216,6 +217,22 @@ class ClaimOrchestrator:
                     f"A senior claims adjudicator will assess your claim within 2 business days.\n\n"
                     f"You will receive an update via email. For urgent queries, call 1800-XXX-XXXX.\n\n"
                     f"Regards,\nClaimSphere Claims Team"
+                )
+
+                # Fire Teams notification via Power Automate (real integration)
+                adj = context.adjudication_result
+                await notify_escalation(
+                    claim_id=context.claim_id,
+                    claim_type=context.claim_type.value if context.claim_type else "Unknown",
+                    claimant_name=claimant.name,
+                    claimant_email=claimant.email,
+                    amount=context.submission.claim_amount,
+                    escalation_reason=reason,
+                    fraud_score=context.fraud_result.fraud_score if context.fraud_result else 0,
+                    confidence_score=adj.confidence_score if adj else 0.0,
+                    ai_recommendation=adj.decision.value if adj else "Escalate",
+                    webhook_url=self.settings.power_automate_webhook_url,
+                    callback_base_url=self.settings.api_base_url,
                 )
 
             elif context.status == ClaimStatus.PENDING_INFO:

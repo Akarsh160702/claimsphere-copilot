@@ -1,0 +1,78 @@
+{
+  "_comment": "Power Automate flow template — ClaimSphere Escalation → Teams Notification",
+  "_instructions": [
+    "1. In Power Automate, create a new Instant cloud flow",
+    "2. Add trigger: 'When an HTTP request is received' (generates the webhook URL)",
+    "3. Copy the generated URL into POWER_AUTOMATE_WEBHOOK_URL in your .env / GitHub secret",
+    "4. Add action: 'Parse JSON' with the schema below",
+    "5. Add action: 'Post adaptive card in a chat or channel' (Teams connector)",
+    "   - Team: your claims review team",
+    "   - Channel: #claims-review",
+    "   - Adaptive Card: use the parsed 'adaptive_card' field from step 4",
+    "6. Save and test by submitting a claim that triggers escalation"
+  ],
+
+  "trigger": {
+    "type": "Request",
+    "kind": "Http",
+    "description": "Receives escalation payload from ClaimSphere backend",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "claim_id":           { "type": "string" },
+        "claim_type":         { "type": "string" },
+        "claimant_name":      { "type": "string" },
+        "claimant_email":     { "type": "string" },
+        "amount_inr":         { "type": "number" },
+        "escalation_reason":  { "type": "string" },
+        "fraud_score":        { "type": "integer" },
+        "confidence_pct":     { "type": "integer" },
+        "ai_recommendation":  { "type": "string" },
+        "escalated_at":       { "type": "string" },
+        "review_url":         { "type": "string" },
+        "callback_approve":   { "type": "string" },
+        "callback_reject":    { "type": "string" },
+        "callback_info":      { "type": "string" },
+        "adaptive_card":      { "type": "object" }
+      },
+      "required": ["claim_id", "adaptive_card"]
+    }
+  },
+
+  "actions": [
+    {
+      "step": 1,
+      "type": "ParseJSON",
+      "name": "Parse ClaimSphere Payload",
+      "content": "@triggerBody()",
+      "schema": "(paste the trigger schema above)"
+    },
+    {
+      "step": 2,
+      "type": "Teams_PostAdaptiveCard",
+      "name": "Notify Claims Review Channel",
+      "teamId": "<your-team-id>",
+      "channelId": "<your-channel-id>",
+      "adaptiveCard": "@{body('Parse_ClaimSphere_Payload')?['adaptive_card']}",
+      "description": "Posts the Adaptive Card with Approve / Reject / More Info action buttons"
+    },
+    {
+      "step": 3,
+      "type": "Respond_to_HTTP",
+      "name": "Acknowledge to ClaimSphere",
+      "statusCode": 202,
+      "body": { "status": "accepted", "claim_id": "@{body('Parse_ClaimSphere_Payload')?['claim_id']}" }
+    }
+  ],
+
+  "callback_flow": {
+    "_comment": "Optional second flow — triggered when adjudicator clicks a Teams card button",
+    "_description": "The Adaptive Card Action.Http buttons POST directly to /webhooks/teams-decision on the ClaimSphere backend. No additional PA flow needed for the callback — the backend handles it directly.",
+    "callback_url_pattern": "https://<api-base>/webhooks/teams-decision",
+    "payload": {
+      "claim_id": "CLM-XXXX-XXXXXX",
+      "decision": "Approve | Reject | MoreInfo",
+      "reviewer": "teams-adjudicator"
+    }
+  }
+}

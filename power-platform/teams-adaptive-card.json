@@ -1,0 +1,95 @@
+{
+  "_comment": "ClaimSphere Copilot — Teams Adaptive Card for Escalation Review",
+  "_usage": "Power Automate posts this card to a Teams channel using 'Post adaptive card in a chat or channel'. The backend dynamically generates the card per-claim — this file is a static reference template.",
+
+  "type": "AdaptiveCard",
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "version": "1.4",
+  "body": [
+    {
+      "type": "Container",
+      "style": "emphasis",
+      "items": [
+        {
+          "type": "ColumnSet",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "ClaimSphere Copilot — Human Review Required",
+                  "weight": "Bolder",
+                  "size": "Medium",
+                  "wrap": true
+                },
+                {
+                  "type": "TextBlock",
+                  "text": "Claim **{{claim_id}}** requires your adjudication",
+                  "spacing": "None",
+                  "wrap": true,
+                  "isSubtle": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "FactSet",
+      "facts": [
+        { "title": "Claim ID",            "value": "{{claim_id}}" },
+        { "title": "Type",                "value": "{{claim_type}}" },
+        { "title": "Claimant",            "value": "{{claimant_name}}" },
+        { "title": "Claimed Amount",      "value": "₹{{amount_inr}}" },
+        { "title": "Fraud Score",         "value": "{{fraud_score}}/100" },
+        { "title": "AI Confidence",       "value": "{{confidence_pct}}%" },
+        { "title": "AI Recommendation",   "value": "{{ai_recommendation}}" },
+        { "title": "Escalation Reason",   "value": "{{escalation_reason}}" },
+        { "title": "Escalated At",        "value": "{{escalated_at}}" }
+      ]
+    },
+    {
+      "type": "TextBlock",
+      "text": "Select your decision. This updates ClaimSphere in real time via Power Automate callback.",
+      "wrap": true,
+      "isSubtle": true,
+      "spacing": "Medium"
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.Http",
+      "title": "Approve",
+      "method": "POST",
+      "url": "{{callback_approve}}",
+      "body": "{\"claim_id\": \"{{claim_id}}\", \"decision\": \"Approve\", \"reviewer\": \"teams-adjudicator\"}",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "style": "positive"
+    },
+    {
+      "type": "Action.Http",
+      "title": "Reject",
+      "method": "POST",
+      "url": "{{callback_reject}}",
+      "body": "{\"claim_id\": \"{{claim_id}}\", \"decision\": \"Reject\", \"reviewer\": \"teams-adjudicator\"}",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "style": "destructive"
+    },
+    {
+      "type": "Action.Http",
+      "title": "Request More Info",
+      "method": "POST",
+      "url": "{{callback_info}}",
+      "body": "{\"claim_id\": \"{{claim_id}}\", \"decision\": \"MoreInfo\", \"reviewer\": \"teams-adjudicator\"}",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }]
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Open in ClaimSphere",
+      "url": "{{review_url}}"
+    }
+  ]
+}

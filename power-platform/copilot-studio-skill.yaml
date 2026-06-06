@@ -1,0 +1,91 @@
+# ClaimSphere Copilot Studio Skill Definition
+# -----------------------------------------------
+# This file defines the Copilot Studio bot actions that connect to
+# the ClaimSphere backend API. Import this in Copilot Studio as a
+# custom connector action or Power Platform custom API.
+#
+# The bot answers policyholder questions using the SupportAgent
+# (Azure AI Search RAG + gpt-4o-mini) and can check claim status.
+
+name: ClaimSphere Assistant
+description: >
+  AI-powered insurance claims assistant. Answers questions about policy
+  coverage, tracks claim status, and escalates to a human agent when needed.
+version: "1.0.0"
+base_url: https://ca-api-u5aqvvvbt34hq.politecliff-7ae23c60.eastus.azurecontainerapps.io
+
+actions:
+  - id: ask_policy_question
+    display_name: Ask a policy question
+    description: >
+      Answer any question about insurance policy coverage, exclusions,
+      deductibles, or claim eligibility using Azure AI Search RAG.
+    trigger_phrases:
+      - "What does my policy cover?"
+      - "Am I covered for {topic}?"
+      - "What are the exclusions for {claim_type}?"
+      - "What is my room rent limit?"
+      - "Is {treatment} covered under health insurance?"
+    method: POST
+    endpoint: /support/query
+    request_body:
+      query: "{user_message}"
+      policy_id: "{policy_id | optional}"
+    response_mapping:
+      answer: answer
+      sources: sources
+    response_template: >
+      {answer}
+
+      *Powered by Azure AI Search + gpt-4o-mini*
+
+  - id: check_claim_status
+    display_name: Check claim status
+    description: >
+      Look up the current processing status of an insurance claim.
+    trigger_phrases:
+      - "What is the status of my claim {claim_id}?"
+      - "Check claim {claim_id}"
+      - "Where is my claim?"
+    method: GET
+    endpoint: /claims/{claim_id}/status
+    path_params:
+      claim_id: "{claim_id}"
+    response_mapping:
+      status: status
+      decision: decision
+      updated_at: updated_at
+    response_template: >
+      Claim **{claim_id}** is currently **{status}**.
+      {decision ? "AI Decision: " + decision : ""}
+      Last updated: {updated_at}
+
+  - id: get_claim_summary
+    display_name: Get claim summary
+    description: >
+      Retrieve a natural language summary of a claim including AI analysis.
+    trigger_phrases:
+      - "Summarise claim {claim_id}"
+      - "Tell me about claim {claim_id}"
+    method: GET
+    endpoint: /support/claim/{claim_id}/summary
+    path_params:
+      claim_id: "{claim_id}"
+    response_mapping:
+      summary: summary
+    response_template: "{summary}"
+
+escalation:
+  trigger: >
+    User is frustrated, asks to speak to a human, or the bot cannot
+    answer after 2 attempts.
+  action: transfer_to_agent
+  message: >
+    I'm connecting you to a claims specialist who can assist further.
+    Your claim reference is {claim_id}.
+
+authentication:
+  type: none
+  note: >
+    For production, configure Azure AD app registration and use
+    OAuth 2.0 client credentials to authenticate bot → backend calls.

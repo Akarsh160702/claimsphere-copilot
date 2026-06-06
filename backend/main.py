@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import structlog
 
-from backend.api import claims, documents, health, support, mock
+from backend.api import claims, documents, health, support, mock, webhooks
 from backend.config import get_settings
 
 logger = structlog.get_logger()
@@ -80,6 +80,7 @@ app.include_router(claims.router)
 app.include_router(documents.router)
 app.include_router(support.router)
 app.include_router(mock.router)
+app.include_router(webhooks.router)
 
 
 if __name__ == "__main__":
