@@ -15,10 +15,13 @@ Falls back silently when POWER_AUTOMATE_WEBHOOK_URL is not configured
 import aiohttp
 import structlog
 from datetime import datetime
+from backend.config import get_settings
 
 logger = structlog.get_logger()
 
-FRONTEND_BASE = "https://orange-beach-00e4c8e0f7.azurestaticapps.net"
+
+def _frontend_base() -> str:
+    return get_settings().frontend_base_url
 
 
 def _build_escalation_payload(
@@ -50,7 +53,7 @@ def _build_escalation_payload(
         "confidence_pct": confidence_pct,
         "ai_recommendation": ai_recommendation,
         "escalated_at": datetime.utcnow().isoformat() + "Z",
-        "review_url": f"{FRONTEND_BASE}/claims/{claim_id}",
+        "review_url": f"{_frontend_base()}/claims/{claim_id}",
         # These are forwarded verbatim by the PA flow as the card action URLs
         "callback_approve": f"{callback_url}?claim_id={claim_id}&decision=Approve",
         "callback_reject":  f"{callback_url}?claim_id={claim_id}&decision=Reject",
@@ -176,19 +179,19 @@ def _build_adaptive_card(
             {
                 "type": "Action.OpenUrl",
                 "title": "Approve Claim",
-                "url": f"{FRONTEND_BASE}/claims/{claim_id}?decision=Approve&reviewer=teams-adjudicator",
+                "url": f"{_frontend_base()}/claims/{claim_id}?decision=Approve&reviewer=teams-adjudicator",
                 "style": "positive",
             },
             {
                 "type": "Action.OpenUrl",
                 "title": "Reject Claim",
-                "url": f"{FRONTEND_BASE}/claims/{claim_id}?decision=Reject&reviewer=teams-adjudicator",
+                "url": f"{_frontend_base()}/claims/{claim_id}?decision=Reject&reviewer=teams-adjudicator",
                 "style": "destructive",
             },
             {
                 "type": "Action.OpenUrl",
                 "title": "Open in ClaimSphere",
-                "url": f"{FRONTEND_BASE}/claims/{claim_id}",
+                "url": f"{_frontend_base()}/claims/{claim_id}",
             },
         ],
     }

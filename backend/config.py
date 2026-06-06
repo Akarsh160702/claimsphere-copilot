@@ -46,6 +46,11 @@ class Settings(BaseSettings):
         default="https://ca-api-u5aqvvvbt34hq.politecliff-7ae23c60.eastus.azurecontainerapps.io",
         alias="API_BASE_URL",
     )
+    # The public URL of the frontend — used in Teams card action buttons
+    frontend_base_url: str = Field(
+        default="https://orange-beach-00e4c8e0f7.azurestaticapps.net",
+        alias="FRONTEND_BASE_URL",
+    )
 
     # App
     app_env: str = Field(default="development", alias="APP_ENV")
