@@ -7,7 +7,7 @@ param principalId string
 param gpt4oCapacity int = 10
 param gpt4oMiniCapacity int = 10
 param gpt4oModelVersion string = '2024-11-20'
-param gpt4oMiniModelVersion string = '2024-11-20'
+param gpt4oMiniModelVersion string = '2024-07-18'
 param deployModels bool = false  // set true after quota is approved
 
 resource account 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
@@ -36,7 +36,7 @@ resource gpt4oMini 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01'
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'gpt-4o'
+      name: 'gpt-4o-mini'
       version: gpt4oMiniModelVersion
     }
   }

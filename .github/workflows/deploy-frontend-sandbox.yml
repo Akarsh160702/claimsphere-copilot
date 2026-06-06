@@ -1,0 +1,62 @@
+# =============================================================================
+# ClaimSphere Copilot — Frontend deploy to sandbox (Vite/React → Azure Static Web Apps)
+#
+# Builds the React app with VITE_BACKEND_ORIGIN pointing to the sandbox
+# Container Apps backend URL, then deploys to the sandbox Static Web App.
+#
+# The key difference from deploy-frontend.yml:
+#   - VITE_BACKEND_ORIGIN is injected from a repo variable (AZURE_SANDBOX_BACKEND_URL)
+#     at build time, overriding the personal-account URL baked into .env.production.
+#   - SWA deployment token comes from the 'sandbox' GitHub environment.
+#
+# TRIGGERS:
+#   - workflow_dispatch (manual)
+#   - push to 'sandbox' branch touching frontend code
+#
+# PRE-REQUISITES:
+#   Secrets (Settings → Environments → sandbox):
+#     AZURE_SANDBOX_SWA_TOKEN
+#   Variables (Settings → Variables → Actions):
+#     AZURE_SANDBOX_BACKEND_URL   (e.g. https://ca-api-xxxx.azurecontainerapps.io)
+# =============================================================================
+name: "Deploy frontend (sandbox)"
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: ["sandbox"]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/deploy-frontend-sandbox.yml"
+
+jobs:
+  build_and_deploy:
+    name: "Build Vite app and publish to sandbox SWA"
+    runs-on: ubuntu-latest
+    environment: sandbox
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Override .env.production with the sandbox backend URL.
+      # VITE_BACKEND_ORIGIN is baked into the JS bundle at build time by Vite.
+      - name: Inject sandbox backend URL
+        run: |
+          echo "VITE_BACKEND_ORIGIN=${{ vars.AZURE_SANDBOX_BACKEND_URL }}" \
+            > frontend/.env.production
+          echo "Baking backend URL: ${{ vars.AZURE_SANDBOX_BACKEND_URL }}"
+
+      - name: Build and deploy to sandbox Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_SANDBOX_SWA_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: "frontend"
+          output_location: "dist"
+
+      - name: Print live URL
+        run: |
+          echo "### Sandbox frontend deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "Check the Azure Portal → Static Web Apps for the live URL." >> "$GITHUB_STEP_SUMMARY"

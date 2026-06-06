@@ -1,0 +1,89 @@
+# =============================================================================
+# ClaimSphere Copilot — Backend deploy to sandbox (FastAPI → Azure Container Apps)
+#
+# Identical build strategy to deploy-backend.yml — builds the Docker image on
+# the GitHub runner (no ACR Tasks) and pushes it to the sandbox ACR, then
+# updates the sandbox Container App to use the new image.
+#
+# TRIGGERS:
+#   - workflow_dispatch (manual, from Actions tab)
+#   - push to 'sandbox' branch (for ongoing CI/CD if you maintain that branch)
+#
+# PRE-REQUISITES (done after provision-sandbox.yml succeeds):
+#   Secrets (Settings → Environments → sandbox):
+#     AZURE_SANDBOX_CLIENT_ID, AZURE_SANDBOX_TENANT_ID,
+#     AZURE_SANDBOX_SUBSCRIPTION_ID
+#   Variables (Settings → Variables → Actions):
+#     AZURE_SANDBOX_RESOURCE_GROUP, AZURE_SANDBOX_ACR_NAME,
+#     AZURE_SANDBOX_CONTAINERAPP_NAME
+# =============================================================================
+name: "Deploy backend (sandbox)"
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: ["sandbox"]
+    paths:
+      - "backend/**"
+      - "data/**"
+      - "requirements.txt"
+      - "Dockerfile"
+      - ".github/workflows/deploy-backend-sandbox.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-backend-sandbox
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    name: "Build image and update Container App"
+    runs-on: ubuntu-latest
+    environment: sandbox
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_SANDBOX_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_SANDBOX_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SANDBOX_SUBSCRIPTION_ID }}
+
+      # ACR Tasks are blocked on sandbox/lab subscriptions.
+      # Build on the GitHub runner instead and push directly to ACR.
+      - name: Log in to sandbox ACR
+        run: az acr login --name ${{ vars.AZURE_SANDBOX_ACR_NAME }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ vars.AZURE_SANDBOX_ACR_NAME }}.azurecr.io/claimsphere-api:${{ github.sha }}
+            ${{ vars.AZURE_SANDBOX_ACR_NAME }}.azurecr.io/claimsphere-api:latest
+          cache-from: type=registry,ref=${{ vars.AZURE_SANDBOX_ACR_NAME }}.azurecr.io/claimsphere-api:latest
+          cache-to: type=inline
+
+      - name: Update Container App image
+        run: |
+          az containerapp update \
+            --name        "${{ vars.AZURE_SANDBOX_CONTAINERAPP_NAME }}" \
+            --resource-group "${{ vars.AZURE_SANDBOX_RESOURCE_GROUP }}" \
+            --image "${{ vars.AZURE_SANDBOX_ACR_NAME }}.azurecr.io/claimsphere-api:${{ github.sha }}"
+
+      - name: Print live URL
+        run: |
+          URL=$(az containerapp show \
+            --name "${{ vars.AZURE_SANDBOX_CONTAINERAPP_NAME }}" \
+            --resource-group "${{ vars.AZURE_SANDBOX_RESOURCE_GROUP }}" \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "### Sandbox backend live at: https://$URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "Backend: https://$URL"

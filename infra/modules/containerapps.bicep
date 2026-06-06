@@ -97,8 +97,8 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           env: [
             { name: 'DEMO_MODE', value: 'false' }
             { name: 'APP_ENV', value: 'production' }
-            // Tells DefaultAzureCredential which user-assigned identity to use
             { name: 'AZURE_CLIENT_ID', value: userAssignedIdentityClientId }
+            { name: 'AZURE_OPENAI_API_VERSION', value: '2024-02-01' }
             { name: 'AZURE_OPENAI_ENDPOINT', value: openAiEndpoint }
             { name: 'AZURE_OPENAI_GPT4O_DEPLOYMENT', value: gpt4oDeploymentName }
             { name: 'AZURE_OPENAI_GPT4O_MINI_DEPLOYMENT', value: gpt4oMiniDeploymentName }

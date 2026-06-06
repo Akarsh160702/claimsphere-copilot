@@ -21,7 +21,7 @@ param staticWebAppLocation string = 'eastus2'
 param gpt4oCapacity int = 10
 
 @description('gpt-4o-mini deployment capacity (x1000 TPM).')
-param gpt4oMiniCapacity int = 10
+param gpt4oMiniCapacity int = 50
 
 @description('Azure AI Search SKU.')
 param searchSku string = 'free'
@@ -175,6 +175,7 @@ output RESOURCE_GROUP string = rg.name
 output AZURE_CLIENT_ID string = identity.outputs.clientId
 
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = registry.outputs.loginServer
+output AZURE_CONTAINER_REGISTRY_NAME string = registry.outputs.name
 
 output AZURE_OPENAI_ENDPOINT string = openAi.outputs.endpoint
 output AZURE_OPENAI_GPT4O_DEPLOYMENT string = openAi.outputs.gpt4oDeploymentName
@@ -190,5 +191,6 @@ output AZURE_STORAGE_CONTAINER_NAME string = storage.outputs.containerName
 
 output AZURE_KEY_VAULT_ENDPOINT string = keyVault.outputs.endpoint
 
+output AZURE_CONTAINER_APP_NAME string = containerApps.outputs.name
 output SERVICE_API_URI string = containerApps.outputs.uri
 output SERVICE_WEB_URI string = staticWebApp.outputs.uri

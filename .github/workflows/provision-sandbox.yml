@@ -1,0 +1,159 @@
+# =============================================================================
+# ClaimSphere Copilot — Provision Azure sandbox infrastructure
+#
+# Deploys ALL Azure resources (Container Apps, ACR, OpenAI, AI Search, Blob,
+# Key Vault, Document Intelligence, Static Web Apps) to your company's sandbox
+# subscription using the existing Bicep templates at infra/main.bicep.
+#
+# TRIGGER: Manual only (workflow_dispatch). Never runs on push — provisioning
+# is a deliberate, once-per-environment action.
+#
+# PRE-REQUISITES (one-time, before running this):
+#   1. Run scripts/setup-sandbox-oidc.sh from Azure Cloud Shell.
+#   2. Create GitHub Environment 'sandbox' (repo Settings → Environments).
+#   3. Add these 3 secrets to the 'sandbox' environment:
+#        AZURE_SANDBOX_CLIENT_ID, AZURE_SANDBOX_TENANT_ID,
+#        AZURE_SANDBOX_SUBSCRIPTION_ID
+#
+# AFTER THIS RUNS:
+#   The job summary shows the resource endpoints and the 4 GitHub Variables
+#   you must add before running the deploy workflows.
+# =============================================================================
+name: "Provision infra (sandbox)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      env_name:
+        description: "Environment name — prefix for all resource names (keep short, lowercase, no spaces)"
+        required: true
+        default: "claimsphere-sb"
+      location:
+        description: "Azure region — must have gpt-4o quota (eastus / eastus2 / swedencentral)"
+        required: true
+        default: "eastus"
+        type: choice
+        options:
+          - eastus
+          - eastus2
+          - swedencentral
+          - westus
+          - australiaeast
+      search_sku:
+        description: "AI Search SKU — 'free' allows 1 per subscription; use 'basic' if your sandbox already has a free tier"
+        required: true
+        default: "free"
+        type: choice
+        options:
+          - free
+          - basic
+          - standard
+
+permissions:
+  id-token: write
+  contents: read
+
+# Never cancel a running infra provisioning job
+concurrency:
+  group: provision-sandbox
+  cancel-in-progress: false
+
+jobs:
+  provision:
+    name: "Provision Azure infrastructure"
+    runs-on: ubuntu-latest
+    environment: sandbox        # Pulls AZURE_SANDBOX_* secrets from this env
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_SANDBOX_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_SANDBOX_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SANDBOX_SUBSCRIPTION_ID }}
+
+      # Deploy all resources in one Bicep call (subscription-scoped).
+      # Uses the same infra/main.bicep that provisions the personal account —
+      # no duplication. Resource names are unique per subscription+env+region.
+      - name: "Deploy Bicep (subscription scope)"
+        id: deploy
+        run: |
+          az deployment sub create \
+            --name "claimsphere-provision-${{ github.run_id }}" \
+            --location "${{ inputs.location }}" \
+            --template-file infra/main.bicep \
+            --parameters \
+              environmentName="${{ inputs.env_name }}" \
+              location="${{ inputs.location }}" \
+              searchSku="${{ inputs.search_sku }}" \
+            --output json \
+          | tee /tmp/deployment.json
+
+      - name: "Parse Bicep outputs into environment"
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, sys
+
+          with open('/tmp/deployment.json') as f:
+              data = json.load(f)
+
+          outputs = data.get('properties', {}).get('outputs', {})
+          if not outputs:
+              print("ERROR: No outputs found in deployment JSON.", file=sys.stderr)
+              sys.exit(1)
+
+          env_path = os.environ['GITHUB_ENV']
+          with open(env_path, 'a') as ef:
+              for key, obj in outputs.items():
+                  ef.write(f"OUT_{key}={obj['value']}\n")
+
+          print(f"Captured {len(outputs)} Bicep outputs.")
+          PYEOF
+
+      - name: "Write job summary"
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<SUMMARY
+          ## ClaimSphere — Sandbox infrastructure provisioned
+
+          | Resource | Endpoint |
+          |---|---|
+          | **Backend API** | \`${{ env.OUT_SERVICE_API_URI }}\` |
+          | **Frontend** | \`${{ env.OUT_SERVICE_WEB_URI }}\` |
+          | Resource Group | \`${{ env.OUT_RESOURCE_GROUP }}\` |
+          | Container Registry | \`${{ env.OUT_AZURE_CONTAINER_REGISTRY_ENDPOINT }}\` |
+          | Azure OpenAI | \`${{ env.OUT_AZURE_OPENAI_ENDPOINT }}\` |
+          | gpt-4o deployment | \`${{ env.OUT_AZURE_OPENAI_GPT4O_DEPLOYMENT }}\` |
+          | gpt-4o-mini deployment | \`${{ env.OUT_AZURE_OPENAI_GPT4O_MINI_DEPLOYMENT }}\` |
+          | AI Search | \`${{ env.OUT_AZURE_SEARCH_ENDPOINT }}\` |
+          | Blob Storage | \`${{ env.OUT_AZURE_STORAGE_BLOB_ENDPOINT }}\` |
+          | Key Vault | \`${{ env.OUT_AZURE_KEY_VAULT_ENDPOINT }}\` |
+          | Document Intelligence | \`${{ env.OUT_AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT }}\` |
+
+          ---
+
+          ## Next steps — copy these into GitHub
+
+          ### 1. Add 4 repo Variables (Settings → Variables → Actions → New repository variable)
+
+          | Variable | Value |
+          |---|---|
+          | \`AZURE_SANDBOX_RESOURCE_GROUP\` | \`${{ env.OUT_RESOURCE_GROUP }}\` |
+          | \`AZURE_SANDBOX_ACR_NAME\` | \`${{ env.OUT_AZURE_CONTAINER_REGISTRY_NAME }}\` |
+          | \`AZURE_SANDBOX_CONTAINERAPP_NAME\` | \`${{ env.OUT_AZURE_CONTAINER_APP_NAME }}\` |
+          | \`AZURE_SANDBOX_BACKEND_URL\` | \`${{ env.OUT_SERVICE_API_URI }}\` |
+
+          ### 2. Add SWA deployment token as a secret in the 'sandbox' environment
+
+          1. Azure Portal → Static Web Apps → the app at \`${{ env.OUT_SERVICE_WEB_URI }}\`
+          2. Left menu → **Manage deployment token** → copy the token
+          3. GitHub → Settings → Environments → sandbox → Secrets → \`AZURE_SANDBOX_SWA_TOKEN\`
+
+          ### 3. Deploy the application
+
+          Trigger both of these workflows manually (Actions tab):
+          - **Deploy backend (sandbox)** — builds Docker image, pushes to ACR, updates Container App
+          - **Deploy frontend (sandbox)** — builds Vite app with sandbox backend URL, publishes to SWA
+          SUMMARY
