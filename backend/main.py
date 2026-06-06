@@ -8,6 +8,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Azure Application Insights — auto-instruments FastAPI, aiohttp, OpenAI client.
+# Sends distributed traces, requests, and exceptions to Azure Monitor.
+try:
+    from azure.monitor.opentelemetry import configure_azure_monitor
+    _ai_conn = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING", "")
+    if _ai_conn:
+        configure_azure_monitor(connection_string=_ai_conn)
+except Exception:
+    pass  # Silently skip if not configured or package unavailable
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import structlog
