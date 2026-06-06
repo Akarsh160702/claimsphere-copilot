@@ -39,23 +39,24 @@ _TOOLS = [
         "name": "submit_claim",
         "description": (
             "Submit a new insurance claim for AI-powered processing. "
-            "Returns a claim_id you can use to track progress."
+            "Returns a claim_id and the AI decision immediately."
         ),
         "inputSchema": {
             "type": "object",
-            "required": ["claimant_name", "policy_id", "claim_type", "amount", "description"],
+            "required": ["claimant_name", "policy_id", "claim_amount", "description"],
             "properties": {
                 "claimant_name": {"type": "string", "description": "Full name of the claimant"},
+                "claimant_email": {"type": "string", "description": "Claimant email (optional, defaults to placeholder)"},
+                "claimant_phone": {"type": "string", "description": "Claimant phone (optional)"},
                 "policy_id": {"type": "string", "description": "Policy ID (e.g. POL-HEALTH-001)"},
                 "claim_type": {
                     "type": "string",
-                    "enum": ["health", "motor", "property", "travel"],
+                    "enum": ["Health", "Motor", "Property", "Travel"],
                     "description": "Type of insurance claim",
                 },
-                "amount": {"type": "number", "description": "Claimed amount in INR"},
-                "description": {"type": "string", "description": "Description of the incident"},
-                "hospital_name": {"type": "string", "description": "Hospital name (health claims)"},
-                "diagnosis": {"type": "string", "description": "Medical diagnosis (health claims)"},
+                "claim_amount": {"type": "number", "description": "Claimed amount in INR"},
+                "incident_date": {"type": "string", "description": "Incident date in YYYY-MM-DD format (defaults to today)"},
+                "description": {"type": "string", "description": "Description of the incident, diagnosis, or damage"},
             },
         },
     },
@@ -170,42 +171,58 @@ async def _tool_get_claim_status(args: dict) -> list[dict]:
     claim_id = args["claim_id"]
     ctx = _processing_contexts.get(claim_id)
     if not ctx:
-        return [{"type": "text", "text": f"Claim {claim_id} not found. It may be in a different backend instance. Try submitting a new claim via submit_claim tool."}]
+        return [{"type": "text", "text": f"Claim {claim_id} not found in active session. Submit a new claim via submit_claim tool to get a live result."}]
+    adj = ctx.adjudication_result
+    fraud = ctx.fraud_result
     data = {
         "claim_id": ctx.claim_id,
-        "status": str(ctx.status.value) if hasattr(ctx.status, "value") else str(ctx.status),
-        "decision": str(ctx.final_decision.value) if hasattr(ctx.final_decision, "value") else str(ctx.final_decision) if ctx.final_decision else None,
-        "priority": str(ctx.priority.value) if hasattr(ctx.priority, "value") else str(ctx.priority),
-        "fraud_score": ctx.fraud_score,
-        "claim_type": str(ctx.claim_type.value) if hasattr(ctx.claim_type, "value") else str(ctx.claim_type) if ctx.claim_type else None,
-        "submitted_at": ctx.created_at.isoformat() if hasattr(ctx.created_at, "isoformat") else str(ctx.created_at),
+        "status": ctx.status.value,
+        "claim_type": ctx.claim_type.value if ctx.claim_type else None,
+        "priority": ctx.priority.value,
+        "claimant": ctx.submission.claimant.name,
+        "claim_amount": ctx.submission.claim_amount,
+        "decision": adj.decision.value if adj else None,
+        "approved_amount": adj.approved_amount if adj else None,
+        "rationale": adj.rationale if adj else None,
+        "fraud_score": fraud.fraud_score if fraud else None,
+        "fraud_risk": fraud.risk_level if fraud else None,
+        "submitted_at": ctx.created_at.isoformat(),
     }
     return [{"type": "text", "text": json.dumps(data, indent=2, default=str)}]
 
 
 async def _tool_submit_claim(args: dict) -> list[dict]:
-    from backend.models.claim import ClaimSubmission
+    from datetime import date
+    from backend.models.claim import ClaimSubmission, ClaimantInfo, Channel
     from backend.api.claims import _processing_contexts, get_orchestrator
     sub = ClaimSubmission(
-        claimant_name=args["claimant_name"],
         policy_id=args["policy_id"],
-        claim_type=args["claim_type"],
-        amount=args["amount"],
+        claimant=ClaimantInfo(
+            name=args["claimant_name"],
+            email=args.get("claimant_email", "claimant@claimsphere.ai"),
+            phone=args.get("claimant_phone", "9999999999"),
+        ),
+        claim_type=args.get("claim_type"),
+        claim_amount=float(args["claim_amount"]),
+        incident_date=args.get("incident_date", date.today().isoformat()),
         description=args["description"],
-        hospital_name=args.get("hospital_name"),
-        diagnosis=args.get("diagnosis"),
+        channel=Channel.WEB,
     )
     orchestrator = get_orchestrator()
     ctx = await orchestrator.process_claim(sub)
     _processing_contexts[ctx.claim_id] = ctx
+    adj = ctx.adjudication_result
+    fraud = ctx.fraud_result
     result = {
         "claim_id": ctx.claim_id,
         "status": ctx.status.value,
-        "decision": ctx.final_decision,
-        "fraud_score": ctx.fraud_score,
-        "message": f"Claim processed. Track at /claims/{ctx.claim_id}/status",
+        "decision": adj.decision.value if adj else None,
+        "approved_amount": adj.approved_amount if adj else None,
+        "fraud_score": fraud.fraud_score if fraud else None,
+        "rationale": adj.rationale if adj else None,
+        "message": f"Claim submitted and processed. Use get_claim_status with claim_id={ctx.claim_id} to check again.",
     }
-    return [{"type": "text", "text": json.dumps(result, indent=2)}]
+    return [{"type": "text", "text": json.dumps(result, indent=2, default=str)}]
 
 
 async def _tool_search_policy(args: dict) -> list[dict]:
@@ -262,16 +279,21 @@ async def _tool_list_claims(args: dict) -> list[dict]:
     for ctx in list(_processing_contexts.values()):
         if status_filter and ctx.status.value.lower() != status_filter:
             continue
+        adj = ctx.adjudication_result
+        fraud = ctx.fraud_result
         claims.append({
             "claim_id": ctx.claim_id,
             "status": ctx.status.value,
-            "decision": ctx.final_decision,
-            "amount": ctx.submission.amount if ctx.submission else None,
+            "decision": adj.decision.value if adj else None,
+            "claim_amount": ctx.submission.claim_amount if ctx.submission else None,
+            "claimant": ctx.submission.claimant.name if ctx.submission else None,
             "claim_type": ctx.claim_type.value if ctx.claim_type else None,
-            "fraud_score": ctx.fraud_score,
+            "fraud_score": fraud.fraud_score if fraud else None,
             "submitted_at": ctx.created_at.isoformat(),
         })
     claims.sort(key=lambda c: c["submitted_at"], reverse=True)
+    if not claims:
+        return [{"type": "text", "text": "No claims found in current session. Submit a claim first using submit_claim."}]
     return [{"type": "text", "text": json.dumps(claims[:limit], indent=2, default=str)}]
 
 
@@ -281,15 +303,13 @@ async def _tool_get_fraud_score(args: dict) -> list[dict]:
     ctx = _processing_contexts.get(claim_id)
     if not ctx:
         return [{"type": "text", "text": f"Claim {claim_id} not found."}]
+    fraud = ctx.fraud_result
     data = {
         "claim_id": ctx.claim_id,
-        "fraud_score": ctx.fraud_score,
-        "fraud_flags": getattr(ctx, "fraud_flags", []),
-        "risk_level": (
-            "HIGH" if (ctx.fraud_score or 0) >= 70
-            else "MEDIUM" if (ctx.fraud_score or 0) >= 40
-            else "LOW"
-        ),
+        "fraud_score": fraud.fraud_score if fraud else None,
+        "risk_level": fraud.risk_level if fraud else "UNKNOWN",
+        "fraud_flags": fraud.flags if fraud else [],
+        "reasoning": fraud.reasoning if fraud else "",
     }
     return [{"type": "text", "text": json.dumps(data, indent=2, default=str)}]
 
