@@ -103,6 +103,12 @@ body {
   border-radius: 8px;
 }
 
+/* ── Input reset ── */
+input::placeholder {
+  color: var(--cs-text-muted);
+  opacity: 1;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .cs-pulse-dot,

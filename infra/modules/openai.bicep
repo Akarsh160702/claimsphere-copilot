@@ -6,8 +6,8 @@ param accountName string
 param principalId string
 param gpt4oCapacity int = 10
 param gpt4oMiniCapacity int = 10
-param gpt4oModelVersion string = '2024-11-20'
-param gpt4oMiniModelVersion string = '2024-07-18'
+param gpt4oModelVersion string = '2025-01-01-preview'
+param gpt4oMiniModelVersion string = '2025-01-28'
 param deployModels bool = false  // set true after quota is approved
 
 resource account 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
