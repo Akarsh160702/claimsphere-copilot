@@ -174,17 +174,21 @@ export function ClaimDetail() {
               <div style={{ marginBottom: 12 }}>
                 <FraudMeter score={fraud.fraud_score} width="100%" />
               </div>
-              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
                 <span style={{
-                  padding: "2px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700,
+                  padding: "3px 10px", borderRadius: 4, fontSize: 11, fontWeight: 700,
                   background: fraud.fraud_score < 30 ? palette.successSoft : fraud.fraud_score < 60 ? palette.warningSoft : palette.dangerSoft,
                   color: fraud.fraud_score < 30 ? palette.success : fraud.fraud_score < 60 ? palette.warning : palette.danger,
-                  border: `1px solid currentColor`,
+                  border: `1px solid currentColor`, lineHeight: 1.5,
                 }}>
                   {fraud.risk_level}
                 </span>
                 {fraud.flags.map((flag) => (
-                  <span key={flag} style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: palette.warningSoft, color: palette.warning, border: `1px solid ${palette.warning}40` }}>
+                  <span key={flag} style={{
+                    padding: "3px 10px", borderRadius: 4, fontSize: 11, fontWeight: 500,
+                    background: palette.warningSoft, color: palette.warning,
+                    border: `1px solid ${palette.warning}40`, lineHeight: 1.5,
+                  }}>
                     {flag}
                   </span>
                 ))}
