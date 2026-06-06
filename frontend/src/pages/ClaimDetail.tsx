@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft20Regular,
@@ -23,6 +23,7 @@ export function ClaimDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [reviewNotes, setReviewNotes] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: claim, isLoading, isError } = useQuery({
     queryKey: ["claim", id],
@@ -39,6 +40,15 @@ export function ClaimDetail() {
       queryClient.invalidateQueries({ queryKey: ["claims"] });
     },
   });
+
+  // Auto-apply decision when arriving from Teams card buttons (?decision=Approve&reviewer=teams-adjudicator)
+  useEffect(() => {
+    const decision = searchParams.get("decision") as "Approve" | "Reject" | "MoreInfo" | null;
+    if (decision && !mutation.isPending && !mutation.isSuccess && claim) {
+      setSearchParams({}, { replace: true }); // remove query params from URL
+      mutation.mutate({ decision });
+    }
+  }, [claim, searchParams]);
 
   if (isLoading) return (
     <AppLayout title="Claim Detail" subtitle="Loading…">
