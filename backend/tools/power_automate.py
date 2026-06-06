@@ -18,7 +18,7 @@ from datetime import datetime
 
 logger = structlog.get_logger()
 
-FRONTEND_BASE = "https://ca-api-u5aqvvvbt34hq.politecliff-7ae23c60.eastus.azurecontainerapps.io"
+FRONTEND_BASE = "https://orange-beach-00e4c8e0f7.azurestaticapps.net"
 
 
 def _build_escalation_payload(
@@ -174,30 +174,16 @@ def _build_adaptive_card(
         ],
         "actions": [
             {
-                "type": "Action.Http",
-                "title": "Approve",
-                "method": "POST",
-                "url": f"{callback_url}",
-                "body": f'{{"claim_id": "{claim_id}", "decision": "Approve", "reviewer": "teams-adjudicator"}}',
-                "headers": [{"name": "Content-Type", "value": "application/json"}],
+                "type": "Action.OpenUrl",
+                "title": "Approve Claim",
+                "url": f"{FRONTEND_BASE}/claims/{claim_id}?decision=Approve&reviewer=teams-adjudicator",
                 "style": "positive",
             },
             {
-                "type": "Action.Http",
-                "title": "Reject",
-                "method": "POST",
-                "url": f"{callback_url}",
-                "body": f'{{"claim_id": "{claim_id}", "decision": "Reject", "reviewer": "teams-adjudicator"}}',
-                "headers": [{"name": "Content-Type", "value": "application/json"}],
+                "type": "Action.OpenUrl",
+                "title": "Reject Claim",
+                "url": f"{FRONTEND_BASE}/claims/{claim_id}?decision=Reject&reviewer=teams-adjudicator",
                 "style": "destructive",
-            },
-            {
-                "type": "Action.Http",
-                "title": "Request More Info",
-                "method": "POST",
-                "url": f"{callback_url}",
-                "body": f'{{"claim_id": "{claim_id}", "decision": "MoreInfo", "reviewer": "teams-adjudicator"}}',
-                "headers": [{"name": "Content-Type", "value": "application/json"}],
             },
             {
                 "type": "Action.OpenUrl",
