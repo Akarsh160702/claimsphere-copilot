@@ -170,17 +170,17 @@ async def _tool_get_claim_status(args: dict) -> list[dict]:
     claim_id = args["claim_id"]
     ctx = _processing_contexts.get(claim_id)
     if not ctx:
-        return [{"type": "text", "text": f"Claim {claim_id} not found."}]
+        return [{"type": "text", "text": f"Claim {claim_id} not found. It may be in a different backend instance. Try submitting a new claim via submit_claim tool."}]
     data = {
         "claim_id": ctx.claim_id,
-        "status": ctx.status.value,
-        "decision": ctx.final_decision,
-        "priority": ctx.priority.value,
+        "status": str(ctx.status.value) if hasattr(ctx.status, "value") else str(ctx.status),
+        "decision": str(ctx.final_decision.value) if hasattr(ctx.final_decision, "value") else str(ctx.final_decision) if ctx.final_decision else None,
+        "priority": str(ctx.priority.value) if hasattr(ctx.priority, "value") else str(ctx.priority),
         "fraud_score": ctx.fraud_score,
-        "claim_type": ctx.claim_type.value if ctx.claim_type else None,
-        "submitted_at": ctx.created_at.isoformat(),
+        "claim_type": str(ctx.claim_type.value) if hasattr(ctx.claim_type, "value") else str(ctx.claim_type) if ctx.claim_type else None,
+        "submitted_at": ctx.created_at.isoformat() if hasattr(ctx.created_at, "isoformat") else str(ctx.created_at),
     }
-    return [{"type": "text", "text": json.dumps(data, indent=2)}]
+    return [{"type": "text", "text": json.dumps(data, indent=2, default=str)}]
 
 
 async def _tool_submit_claim(args: dict) -> list[dict]:
@@ -291,7 +291,7 @@ async def _tool_get_fraud_score(args: dict) -> list[dict]:
             else "LOW"
         ),
     }
-    return [{"type": "text", "text": json.dumps(data, indent=2)}]
+    return [{"type": "text", "text": json.dumps(data, indent=2, default=str)}]
 
 
 # ---------------------------------------------------------------------------
