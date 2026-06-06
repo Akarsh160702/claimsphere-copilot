@@ -83,6 +83,26 @@ app.include_router(mock.router)
 app.include_router(webhooks.router)
 
 
+# Mount MCP server — exposes ClaimSphere API as Model Context Protocol tools.
+# Any MCP client (Copilot Studio, Claude Desktop, VS Code Copilot) can connect
+# to /mcp and invoke claim pipeline operations as structured AI tools.
+try:
+    from fastapi_mcp import FastApiMCP
+    mcp = FastApiMCP(
+        app,
+        name="ClaimSphere Copilot",
+        description=(
+            "AI-powered insurance claims processing system. "
+            "Tools: submit claims, check status, search policies, get fraud analysis."
+        ),
+        base_url="https://ca-api-u5aqvvvbt34hq.politecliff-7ae23c60.eastus.azurecontainerapps.io",
+    )
+    mcp.mount()
+    logger.info("mcp_server_mounted", endpoint="/mcp")
+except Exception as e:
+    logger.warning("mcp_server_unavailable", error=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
