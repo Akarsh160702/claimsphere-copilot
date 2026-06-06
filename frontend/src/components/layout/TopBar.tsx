@@ -42,17 +42,35 @@ export function TopBar({ title, subtitle }: TopBarProps) {
             display: "flex",
             alignItems: "center",
             gap: 8,
-            padding: "8px 14px",
+            padding: "8px 12px 8px 14px",
             borderRadius: 10,
             background: palette.glassFill,
             border: `1px solid ${palette.glassBorder}`,
             color: palette.textMuted,
             fontSize: 13,
-            minWidth: 220,
+            minWidth: 248,
+            cursor: "text",
+            transition: "border-color 0.15s, background 0.15s",
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = palette.glassBorderStrong)}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = palette.glassBorder)}
         >
           <Search20Regular />
-          <span>Search claims, policies…</span>
+          <span style={{ flex: 1 }}>Search claims, policies…</span>
+          <kbd
+            style={{
+              fontSize: 10.5,
+              fontWeight: 600,
+              fontFamily: "inherit",
+              padding: "2px 6px",
+              borderRadius: 5,
+              background: "rgba(255,255,255,0.05)",
+              border: `1px solid ${palette.glassBorder}`,
+              color: palette.textMuted,
+            }}
+          >
+            ⌘K
+          </kbd>
         </div>
 
         <button

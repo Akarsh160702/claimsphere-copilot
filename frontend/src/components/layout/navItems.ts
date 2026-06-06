@@ -15,7 +15,7 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { path: "/", label: "Dashboard", icon: Board20Regular },
+  { path: "/dashboard", label: "Dashboard", icon: Board20Regular },
   { path: "/intake", label: "New Claim", icon: DocumentAdd20Regular },
   { path: "/claims", label: "Claims", icon: AppsList20Regular },
   { path: "/monitor", label: "Agent Monitor", icon: DataTrending20Regular },

@@ -1,4 +1,5 @@
 import { Routes, Route } from "react-router-dom";
+import { Landing } from "@/pages/Landing";
 import { Dashboard } from "@/pages/Dashboard";
 import { NewClaim } from "@/pages/NewClaim";
 import { ClaimsRegister } from "@/pages/ClaimsRegister";
@@ -15,7 +16,8 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Dashboard />} />
+      <Route path="/" element={<Landing />} />
+      <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/intake" element={<NewClaim />} />
       <Route path="/claims" element={<ClaimsRegister />} />
       <Route path="/claims/:id" element={<ClaimDetail />} />

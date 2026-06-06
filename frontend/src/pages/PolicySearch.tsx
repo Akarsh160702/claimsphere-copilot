@@ -5,7 +5,7 @@ import { Search20Regular, Bot20Regular } from "@fluentui/react-icons";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard } from "@/components/common/GlassCard";
 import { Skeleton } from "@/components/common/Skeleton";
-import { palette } from "@/theme/tokens";
+import { palette, typeColor } from "@/theme/tokens";
 import { formatINR } from "@/utils/format";
 import { askSupport, fetchPolicies } from "@/api/claims";
 
@@ -191,10 +191,7 @@ export function PolicySearch() {
 function PolicyCard({ policy, selected, onClick }: {
   policy: Record<string, unknown>; selected: boolean; onClick: () => void;
 }) {
-  const TYPE_COLORS: Record<string, string> = {
-    Health: palette.danger, Motor: "#9B6DFF", Property: "#22D3EE", Travel: palette.warning,
-  };
-  const color = TYPE_COLORS[String(policy.policy_type)] ?? palette.brand;
+  const color = typeColor(String(policy.policy_type));
 
   return (
     <GlassCard

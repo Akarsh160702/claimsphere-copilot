@@ -16,7 +16,7 @@ import {
 } from "@fluentui/react-icons";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard } from "@/components/common/GlassCard";
-import { palette, radius } from "@/theme/tokens";
+import { palette, radius, typeColor } from "@/theme/tokens";
 import { formatINR } from "@/utils/format";
 import { submitClaimSync, uploadDocument } from "@/api/claims";
 import type { ClaimType, Channel, ClaimFull } from "@/api/types";
@@ -42,13 +42,6 @@ const CLAIM_TYPES: { type: ClaimType; icon: React.ElementType; desc: string }[] 
   { type: "Property", icon: Home20Regular, desc: "Fire, flood, structural damage" },
   { type: "Travel", icon: Airplane20Regular, desc: "Trip cancellation, lost baggage, medical abroad" },
 ];
-
-const TYPE_COLORS: Record<ClaimType, string> = {
-  Health: palette.danger,
-  Motor: "#9B6DFF",
-  Property: "#22D3EE",
-  Travel: palette.warning,
-};
 
 const AGENTS = [
   { name: "RouterAgent", label: "Classifying claim type & priority", model: "gpt-4o-mini" },
@@ -175,7 +168,7 @@ export function NewClaim() {
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, maxWidth: 640 }}>
               {CLAIM_TYPES.map(({ type, icon: Icon, desc }) => {
-                const color = TYPE_COLORS[type];
+                const color = typeColor(type);
                 const selected = form.claimType === type;
                 return (
                   <GlassCard
@@ -217,7 +210,7 @@ export function NewClaim() {
             <div style={{ maxWidth: 640 }}>
               <GlassCard>
                 <p style={{ margin: "0 0 20px", fontSize: 13.5, color: palette.textSecondary }}>
-                  Enter claim and claimant details for your <strong style={{ color: TYPE_COLORS[form.claimType as ClaimType] }}>{form.claimType}</strong> claim.
+                  Enter claim and claimant details for your <strong style={{ color: typeColor(form.claimType) }}>{form.claimType}</strong> claim.
                 </p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                   <FormField label="Policy ID *" value={form.policyId} onChange={(v) => set("policyId", v)}

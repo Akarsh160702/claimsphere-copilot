@@ -1,46 +1,68 @@
 /**
  * ClaimSphere design tokens.
  * The single source of truth for colors, spacing, radii and motion used by the
- * custom (non-Fluent) components. Dark-first, Microsoft-accented.
+ * custom (non-Fluent) components.
+ *
+ * Design language: premium dark, Azure-accented, Linear/Vercel-grade restraint.
+ * Discipline rule — ONE brand accent (Azure blue). The semantic colors
+ * (success / warning / danger) are reserved strictly for status meaning, never
+ * for decoration. Claim-type hues live in a single controlled categorical set.
  */
 
 export const palette = {
-  // Surfaces
-  bgBase: "#0A0F1E",
-  bgGradientTop: "#0C1426",
-  bgGradientBottom: "#070B16",
-  bgElevated: "#0F1729",
-  sidebar: "#080C18",
+  // Surfaces — deep, near-neutral navy with just enough blue to feel "Azure"
+  bgBase: "#090D17",
+  bgGradientTop: "#0B111F",
+  bgGradientBottom: "#070A12",
+  bgElevated: "#0E1422",
+  sidebar: "#070A12",
 
   // Glass
-  glassFill: "rgba(255, 255, 255, 0.045)",
-  glassFillStrong: "rgba(255, 255, 255, 0.07)",
-  glassBorder: "rgba(255, 255, 255, 0.09)",
-  glassBorderStrong: "rgba(255, 255, 255, 0.16)",
+  glassFill: "rgba(255, 255, 255, 0.040)",
+  glassFillStrong: "rgba(255, 255, 255, 0.065)",
+  glassBorder: "rgba(255, 255, 255, 0.075)",
+  glassBorderStrong: "rgba(255, 255, 255, 0.15)",
+  glassHighlight: "rgba(255, 255, 255, 0.10)",
 
   // Text
-  textPrimary: "#EAF0F9",
-  textSecondary: "#9FB0C7",
-  textMuted: "#647288",
+  textPrimary: "#ECF1FA",
+  textSecondary: "#97A6BE",
+  textMuted: "#5C6A82",
 
-  // Brand (Microsoft blue)
-  brand: "#0078D4",
-  brandHover: "#2B8CE6",
-  brandSoft: "rgba(0, 120, 212, 0.14)",
+  // Brand — the single accent (Microsoft / Azure blue)
+  brand: "#2E90FA",
+  brandStrong: "#0078D4",
+  brandHover: "#5AABFF",
+  brandSoft: "rgba(46, 144, 250, 0.13)",
 
-  // Semantic
-  success: "#00B894",
-  successSoft: "rgba(0, 184, 148, 0.14)",
-  warning: "#FDCB6E",
-  warningSoft: "rgba(253, 203, 110, 0.16)",
-  danger: "#D63031",
-  dangerSoft: "rgba(214, 48, 49, 0.16)",
-  info: "#5AB0FF",
-  infoSoft: "rgba(90, 176, 255, 0.14)",
+  // Semantic — status only
+  success: "#34D399",
+  successSoft: "rgba(52, 211, 153, 0.13)",
+  warning: "#FBBF55",
+  warningSoft: "rgba(251, 191, 85, 0.14)",
+  danger: "#F4625A",
+  dangerSoft: "rgba(244, 98, 90, 0.14)",
+  info: "#5AABFF",
+  infoSoft: "rgba(90, 171, 255, 0.13)",
 
-  // Accent ramp for charts
-  chart: ["#0078D4", "#00B894", "#FDCB6E", "#D63031", "#9B6DFF", "#22D3EE"],
+  // Harmonious categorical ramp for charts (blue-led, lightly desaturated)
+  chart: ["#2E90FA", "#34D399", "#FBBF55", "#F4625A", "#8B86F5", "#2DD4BF"],
 } as const;
+
+/**
+ * Controlled categorical colors for claim types. Centralized so every page
+ * (table, charts, intake, search) renders the same hue for the same type.
+ * Non-semantic hues, kept distinct from status colors to avoid confusion.
+ */
+export const typeColors: Record<string, string> = {
+  Health: "#5AABFF", // azure
+  Motor: "#8B86F5", // soft indigo
+  Property: "#2DD4BF", // teal
+  Travel: "#E5B567", // muted gold
+};
+
+export const typeColor = (type?: string | null): string =>
+  (type && typeColors[type]) || palette.textMuted;
 
 /** Maps a claim decision / status to a semantic color. */
 export const statusColor = (value: string): string => {
@@ -75,6 +97,14 @@ export const space = {
   lg: "16px",
   xl: "24px",
   xxl: "32px",
+} as const;
+
+/** Layered shadow tokens — used for the "expensive" glass depth. */
+export const shadow = {
+  card: "0 1px 0 0 rgba(255,255,255,0.05) inset, 0 12px 32px -14px rgba(0,0,0,0.65), 0 2px 8px -3px rgba(0,0,0,0.45)",
+  cardHover:
+    "0 1px 0 0 rgba(255,255,255,0.08) inset, 0 22px 48px -16px rgba(0,0,0,0.7), 0 4px 12px -4px rgba(0,0,0,0.5)",
+  brandGlow: "0 8px 24px -6px rgba(46,144,250,0.45)",
 } as const;
 
 export const motionTokens = {

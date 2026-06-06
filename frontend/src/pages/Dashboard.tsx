@@ -44,8 +44,8 @@ export function Dashboard() {
 
           {/* KPI row 2 */}
           <div style={{ ...kpiGrid, marginTop: 16 }}>
-            <KpiCard label="Total Payout" value={formatINR(metrics.totalPayout, true)} delta="+18% vs last week" trend="up" icon={Money20Regular} accent="#22D3EE" delay={0.02} />
-            <KpiCard label="Avg TAT" value="3.1s" delta="0.8s faster" trend="up" icon={Timer20Regular} accent="#9B6DFF" delay={0.06} />
+            <KpiCard label="Total Payout" value={formatINR(metrics.totalPayout, true)} delta="+18% vs last week" trend="up" icon={Money20Regular} accent={palette.brand} delay={0.02} />
+            <KpiCard label="Avg TAT" value="3.1s" delta="0.8s faster" trend="up" icon={Timer20Regular} accent={palette.info} delay={0.06} />
             <KpiCard label="Avg Fraud Score" value={`${metrics.avgFraud}/100`} delta="Low-risk portfolio" trend="up" icon={ShieldCheckmark20Regular} accent={palette.brand} delay={0.1} />
             <KpiCard label="AI Accuracy" value="97.3%" delta="+1.2% this month" trend="up" icon={Target20Regular} accent={palette.success} delay={0.14} />
           </div>

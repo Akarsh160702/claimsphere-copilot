@@ -1,10 +1,11 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { ShieldTask24Filled } from "@fluentui/react-icons";
-import { palette } from "@/theme/tokens";
+import { palette, shadow } from "@/theme/tokens";
 import { NAV_ITEMS } from "./navItems";
 import { useAppStore } from "@/store/useAppStore";
 
 export function Sidebar() {
+  const navigate = useNavigate();
   const backendOnline = useAppStore((s) => s.backendOnline);
   const dataSource = useAppStore((s) => s.dataSource);
 
@@ -22,28 +23,31 @@ export function Sidebar() {
       }}
     >
       {/* Brand */}
-      <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "0 8px 18px" }}>
+      <div
+        onClick={() => navigate("/")}
+        style={{ display: "flex", alignItems: "center", gap: 11, padding: "0 8px 18px", cursor: "pointer" }}
+      >
         <div
           style={{
             width: 36,
             height: 36,
             borderRadius: 10,
-            background: `linear-gradient(135deg, ${palette.brand}, #00B894)`,
+            background: `linear-gradient(140deg, ${palette.brandHover}, ${palette.brandStrong})`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
-            boxShadow: "0 4px 14px rgba(0,120,212,0.4)",
+            boxShadow: shadow.brandGlow,
           }}
         >
           <ShieldTask24Filled style={{ color: "#fff" }} />
         </div>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: palette.textPrimary, lineHeight: 1.1 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", color: palette.textPrimary, lineHeight: 1.1 }}>
             ClaimSphere
           </div>
-          <div style={{ fontSize: 11, color: palette.textMuted, marginTop: 2 }}>
-            Copilot · v1.0
+          <div style={{ fontSize: 10.5, color: palette.textMuted, marginTop: 2, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            Copilot
           </div>
         </div>
       </div>

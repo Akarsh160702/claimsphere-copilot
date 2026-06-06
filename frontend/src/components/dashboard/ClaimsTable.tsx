@@ -11,17 +11,10 @@ import {
 import { useState } from "react";
 import { ArrowSortUp16Regular, ArrowSortDown16Regular } from "@fluentui/react-icons";
 import type { ClaimListItem } from "@/api/types";
-import { palette } from "@/theme/tokens";
+import { palette, typeColor } from "@/theme/tokens";
 import { formatINR, formatDate } from "@/utils/format";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { FraudMeter } from "@/components/common/FraudMeter";
-
-const TYPE_COLORS: Record<string, string> = {
-  Health: palette.brand,
-  Motor: "#9B6DFF",
-  Property: "#22D3EE",
-  Travel: palette.warning,
-};
 
 const col = createColumnHelper<ClaimListItem>();
 
@@ -46,7 +39,7 @@ export function ClaimsTable({ claims }: { claims: ClaimListItem[] }) {
         header: "Type",
         cell: (c) => {
           const t = c.getValue() ?? "—";
-          const color = TYPE_COLORS[t as string] ?? palette.textMuted;
+          const color = typeColor(t as string);
           return (
             <span
               style={{

@@ -1,13 +1,16 @@
 :root {
   color-scheme: dark;
-  --cs-bg-base: #0a0f1e;
-  --cs-sidebar: #080c18;
-  --cs-glass-fill: rgba(255, 255, 255, 0.045);
-  --cs-glass-border: rgba(255, 255, 255, 0.09);
-  --cs-text-primary: #eaf0f9;
-  --cs-text-secondary: #9fb0c7;
-  --cs-text-muted: #647288;
-  --cs-brand: #0078d4;
+  --cs-bg-base: #090d17;
+  --cs-sidebar: #070a12;
+  --cs-glass-fill: rgba(255, 255, 255, 0.04);
+  --cs-glass-fill-strong: rgba(255, 255, 255, 0.065);
+  --cs-glass-border: rgba(255, 255, 255, 0.075);
+  --cs-glass-highlight: rgba(255, 255, 255, 0.1);
+  --cs-text-primary: #ecf1fa;
+  --cs-text-secondary: #97a6be;
+  --cs-text-muted: #5c6a82;
+  --cs-brand: #2e90fa;
+  --cs-brand-ring: rgba(46, 144, 250, 0.35);
 }
 
 * {
@@ -26,13 +29,17 @@ body {
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Tabular figures everywhere — numbers line up like a real financial product */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "cv05" 1, "ss01" 1;
+  letter-spacing: -0.006em;
   color: var(--cs-text-primary);
   background-color: var(--cs-bg-base);
+  /* One restrained ambient glow + a quiet base gradient. */
   background-image:
-    radial-gradient(900px 600px at 12% -8%, rgba(0, 120, 212, 0.16), transparent 60%),
-    radial-gradient(800px 600px at 100% 0%, rgba(155, 109, 255, 0.12), transparent 55%),
-    radial-gradient(700px 500px at 50% 120%, rgba(0, 184, 148, 0.08), transparent 60%),
-    linear-gradient(180deg, #0c1426 0%, #070b16 100%);
+    radial-gradient(1100px 720px at 16% -12%, rgba(46, 144, 250, 0.11), transparent 58%),
+    radial-gradient(900px 600px at 100% 4%, rgba(46, 144, 250, 0.05), transparent 55%),
+    linear-gradient(180deg, #0b111f 0%, #070a12 100%);
   background-attachment: fixed;
   overflow: hidden;
 }
@@ -46,40 +53,86 @@ body {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.09);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.16);
   background-clip: content-box;
 }
 
-/* ── Glass primitives ── */
+/* ── Text selection ── */
+::selection {
+  background: rgba(46, 144, 250, 0.32);
+  color: #fff;
+}
+
+/* ── Glass primitives ──
+   Subtle top-to-bottom fill gradient + a 1px inset top highlight + a layered
+   drop shadow. This combination is what reads as "expensive" rather than flat. */
 .cs-glass {
-  background: var(--cs-glass-fill);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(255, 255, 255, 0.018) 100%
+    ),
+    var(--cs-bg-base);
+  background-blend-mode: normal;
   border: 1px solid var(--cs-glass-border);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   border-radius: 16px;
-  box-shadow: 0 8px 30px rgba(2, 6, 16, 0.45);
+  box-shadow:
+    0 1px 0 0 var(--cs-glass-highlight) inset,
+    0 12px 32px -14px rgba(0, 0, 0, 0.65),
+    0 2px 8px -3px rgba(0, 0, 0, 0.45);
+}
+
+/* ── Focus rings — accessible + premium ── */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: none;
+  border-color: var(--cs-brand) !important;
+  box-shadow: 0 0 0 3px var(--cs-brand-ring);
 }
 
 /* ── Pulse for live indicators ── */
 @keyframes cs-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(0, 184, 148, 0.5);
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5);
   }
   70% {
-    box-shadow: 0 0 0 7px rgba(0, 184, 148, 0);
+    box-shadow: 0 0 0 7px rgba(52, 211, 153, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 184, 148, 0);
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
   }
 }
 .cs-pulse-dot {
   animation: cs-pulse 2s infinite;
+}
+
+/* ── Slow ambient drift for the landing hero glow ── */
+@keyframes cs-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate3d(2%, -3%, 0) scale(1.06);
+    opacity: 1;
+  }
+}
+.cs-drift {
+  animation: cs-drift 14s ease-in-out infinite;
 }
 
 /* ── Shimmer for skeleton loaders ── */
@@ -104,7 +157,8 @@ body {
 }
 
 /* ── Input reset ── */
-input::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: var(--cs-text-muted);
   opacity: 1;
 }
@@ -112,7 +166,8 @@ input::placeholder {
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .cs-pulse-dot,
-  .cs-skeleton {
+  .cs-skeleton,
+  .cs-drift {
     animation: none;
   }
 }
