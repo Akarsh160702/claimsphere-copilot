@@ -123,6 +123,41 @@ async def _check_integrations(settings) -> dict:
     return results
 
 
+@router.get("/health/dataverse-write")
+async def dataverse_write_test():
+    """Attempt a real Dataverse write and return the raw API response for debugging."""
+    settings = get_settings()
+    if not (settings.dataverse_url and settings.dataverse_client_id and settings.dataverse_client_secret):
+        return {"error": "Dataverse not configured"}
+    try:
+        import aiohttp
+        from backend.tools.dataverse import DataverseClient
+        client = DataverseClient()
+        token = await client._get_token()
+        base = settings.dataverse_url.rstrip("/")
+        test_record = {
+            "crcce_claimnumber": "CLM-TEST-HEALTHCHECK",
+            "crcce_policyid": "POL-TEST-001",
+            "crcce_claimantname": "Health Check Test",
+            "crcce_status": "Test",
+            "crcce_claimtype": "Health",
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{base}/api/data/v9.2/crcce_claims",
+                json=test_record,
+                headers=client._headers(token),
+            ) as resp:
+                body = await resp.text()
+                return {
+                    "status": resp.status,
+                    "headers": dict(resp.headers),
+                    "body": body[:500],
+                }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @router.get("/")
 async def root():
     return {
