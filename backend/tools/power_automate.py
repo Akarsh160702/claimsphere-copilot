@@ -188,6 +188,11 @@ def _build_adaptive_card(
                 "url": f"{callback_url}?claim_id={claim_id}&decision=Reject&reviewer=teams-adjudicator",
                 "style": "destructive",
             },
+            {
+                "type": "Action.OpenUrl",
+                "title": "Open in ClaimSphere",
+                "url": f"{_frontend_base()}/claims/{claim_id}",
+            },
         ],
     }
 
