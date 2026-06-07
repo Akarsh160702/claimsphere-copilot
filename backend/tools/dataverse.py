@@ -21,6 +21,7 @@ _demo_logs: list[dict] = []
 class DataverseClient:
     def __init__(self):
         self.settings = get_settings()
+        self._base_url = self.settings.dataverse_url.rstrip("/")
         self._token: Optional[str] = None
         self._token_expiry: Optional[datetime] = None
 
@@ -37,7 +38,7 @@ class DataverseClient:
             "grant_type": "client_credentials",
             "client_id": self.settings.dataverse_client_id,
             "client_secret": self.settings.dataverse_client_secret,
-            "scope": f"{self.settings.dataverse_url}/.default",
+            "scope": f"{self._base_url}/.default",
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(token_url, data=data) as resp:
@@ -64,7 +65,7 @@ class DataverseClient:
 
         try:
             token = await self._get_token()
-            url = f"{self.settings.dataverse_url}/api/data/v9.2/cs_claims"
+            url = f"{self._base_url}/api/data/v9.2/cs_claims"
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, json=claim_data, headers=self._headers(token)) as resp:
                     result = await resp.json()
@@ -84,7 +85,7 @@ class DataverseClient:
 
         try:
             token = await self._get_token()
-            url = f"{self.settings.dataverse_url}/api/data/v9.2/cs_claims({claim_id})"
+            url = f"{self._base_url}/api/data/v9.2/cs_claims({claim_id})"
             async with aiohttp.ClientSession() as session:
                 async with session.patch(url, json=updates, headers=self._headers(token)) as resp:
                     return resp.status in (200, 204)
@@ -101,7 +102,7 @@ class DataverseClient:
         try:
             token = await self._get_token()
             url = (
-                f"{self.settings.dataverse_url}/api/data/v9.2/cs_claims"
+                f"{self._base_url}/api/data/v9.2/cs_claims"
                 f"?$filter=cs_claimnumber eq '{claim_id}'"
             )
             async with aiohttp.ClientSession() as session:
@@ -119,7 +120,7 @@ class DataverseClient:
 
         try:
             token = await self._get_token()
-            url = f"{self.settings.dataverse_url}/api/data/v9.2/cs_claims?$orderby=createdon desc&$top=100"
+            url = f"{self._base_url}/api/data/v9.2/cs_claims?$orderby=createdon desc&$top=100"
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=self._headers(token)) as resp:
                     result = await resp.json()
@@ -136,7 +137,7 @@ class DataverseClient:
 
         try:
             token = await self._get_token()
-            url = f"{self.settings.dataverse_url}/api/data/v9.2/cs_claimdocuments"
+            url = f"{self._base_url}/api/data/v9.2/cs_claimdocuments"
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, json=doc_data, headers=self._headers(token)) as resp:
                     result = await resp.json()
@@ -154,7 +155,7 @@ class DataverseClient:
 
         try:
             token = await self._get_token()
-            url = f"{self.settings.dataverse_url}/api/data/v9.2/cs_claimauditlogs"
+            url = f"{self._base_url}/api/data/v9.2/cs_claimauditlogs"
             async with aiohttp.ClientSession() as session:
                 await session.post(url, json=log_data, headers=self._headers(token))
         except Exception as e:
