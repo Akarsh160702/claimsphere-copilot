@@ -68,7 +68,23 @@ async def _check_integrations(settings) -> dict:
                         dv_ok = True
                         dv_note = f"live — {len(body.get('value', []))} rows"
                     else:
-                        dv_note = f"HTTP {resp.status}: {body.get('error', {}).get('message', str(body))[:120]}"
+                        # Discover actual custom entity names to help diagnose
+                        async with session.get(
+                            f"{base}/api/data/v9.2/EntityDefinitions"
+                            "?$select=LogicalName,EntitySetName"
+                            "&$filter=IsCustomEntity eq true and IsIntersect eq false"
+                            "&$top=20",
+                            headers=client._headers(token),
+                        ) as meta_resp:
+                            meta = await meta_resp.json()
+                            entity_names = [
+                                e.get("EntitySetName") for e in meta.get("value", [])
+                                if "claim" in e.get("LogicalName", "").lower()
+                            ] or [e.get("EntitySetName") for e in meta.get("value", [])][:10]
+                        dv_note = (
+                            f"HTTP {resp.status}: cs_claims not found. "
+                            f"Claim-related entities: {entity_names}"
+                        )
         except Exception as e:
             dv_note = str(e)[:120]
     results["dataverse"] = {
