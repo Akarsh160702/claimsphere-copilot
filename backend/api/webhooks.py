@@ -151,15 +151,13 @@ async def teams_decision_redirect(
     notes: str = Query(""),
 ):
     """
-    Called when an adjudicator clicks Approve/Reject on a Teams Adaptive Card.
-    Action.OpenUrl opens this URL in a real browser.
+    Called when an adjudicator clicks Approve/Reject on the Teams Adaptive Card.
+    Action.OpenUrl opens this backend URL — no redirect to the SWA is needed,
+    so company proxy/Cisco Umbrella blocks on the frontend domain are avoided.
 
-    SafeLinks/Teams URL unfurling/Outlook preview crawlers prefetch these URLs
-    with a plain GET and cannot execute JavaScript — so the GET itself changes
-    nothing. When a real human's browser opens the page, the inline script fires
-    immediately: it POSTs the decision to the backend, then redirects to the
-    ClaimDetail page in the React SWA so the adjudicator sees the full updated
-    claim. No button click required.
+    GET itself changes nothing. JS auto-POSTs the decision on page load and
+    shows an inline confirmation. Crawlers (SafeLinks, Cisco Umbrella) cannot
+    execute JavaScript so they never mutate state.
     """
     if decision not in ("Approve", "Reject", "MoreInfo"):
         return HTMLResponse("<h2>Invalid decision value.</h2>", status_code=400)
