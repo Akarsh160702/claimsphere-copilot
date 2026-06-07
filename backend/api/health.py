@@ -140,21 +140,16 @@ async def dataverse_write_test():
             "crcce_policyid":       "POL-TEST-001",
             "crcce_claimantname":   "Health Check Test",
             "crcce_claimantemail":  "test@claimsphere.ai",
-            "crcce_claimtype":      "Health",
             "crcce_claimamount":    500000.0,
             "crcce_incidentdate":   "2026-06-07",
-            "crcce_channel":        "WEB",
-            "crcce_priority":       "MEDIUM",
             "crcce_fraudscore":     15,
-            "crcce_fraudrisklevel": "LOW",
-            "crcce_decision":       "APPROVED",
             "crcce_approvedamount": 400000.0,
             "crcce_finalpayout":    400000.0,
             "crcce_rationale":      "Test rationale",
             "crcce_confidencescore":0.85,
             "crcce_stpflag":        False,
             "crcce_escalated":      False,
-            "crcce_description":    "Full field write test",
+            "crcce_description":    "[Health] Status: APPROVED | Decision: APPROVED | Risk: LOW | Full field write test",
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(

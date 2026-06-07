@@ -60,28 +60,33 @@ class DataverseClient:
     @staticmethod
     def _map_claim(d: dict) -> dict:
         """Translate orchestrator keys → crcce_ Dataverse column names.
-        Note: crcce_status is a Choice (Edm.Int32) in this environment — omitted to avoid type errors.
+        Choice columns (crcce_status, crcce_claimtype, crcce_channel, crcce_priority,
+        crcce_decision, crcce_fraudrisklevel) are Edm.Int32 in this environment and
+        cannot accept string values — stored in rationale/description as plain text instead.
         """
+        decision = d.get("decision", "")
+        fraud_risk = d.get("fraud_risk_level", "")
+        claim_type = d.get("claim_type", "")
+        status = d.get("status", "")
         return {
             "crcce_claimnumber":    d.get("claim_id"),
             "crcce_policyid":       d.get("policy_id"),
-            "crcce_claimtype":      d.get("claim_type"),
             "crcce_claimantname":   d.get("claimant_name"),
             "crcce_claimantemail":  d.get("claimant_email"),
             "crcce_claimamount":    d.get("claim_amount"),
             "crcce_incidentdate":   d.get("incident_date"),
-            "crcce_channel":        d.get("channel"),
-            "crcce_priority":       d.get("priority"),
             "crcce_fraudscore":     d.get("fraud_score"),
-            "crcce_fraudrisklevel": d.get("fraud_risk_level"),
-            "crcce_decision":       d.get("decision"),
             "crcce_approvedamount": d.get("approved_amount"),
             "crcce_finalpayout":    d.get("final_payout"),
-            "crcce_rationale":      d.get("rationale"),
             "crcce_confidencescore":d.get("confidence_score"),
             "crcce_stpflag":        d.get("stp_flag"),
             "crcce_escalated":      d.get("escalated"),
-            "crcce_description":    d.get("description"),
+            "crcce_rationale":      d.get("rationale"),
+            "crcce_description":    (
+                f"[{claim_type}] Status: {status} | "
+                f"Decision: {decision} | Risk: {fraud_risk} | "
+                f"{d.get('description', '')}"
+            ),
         }
 
     @staticmethod
