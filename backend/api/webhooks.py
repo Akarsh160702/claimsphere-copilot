@@ -151,56 +151,51 @@ async def teams_decision_redirect(
     notes: str = Query(""),
 ):
     """
-    Called when an adjudicator opens the Approve/Reject link from a Teams card.
+    Called when an adjudicator clicks Approve/Reject on a Teams Adaptive Card.
+    Action.OpenUrl opens this URL in a real browser.
 
-    IMPORTANT: a GET MUST NOT mutate claim state. Microsoft SafeLinks, Teams URL
-    unfurling, Outlook link preview and other crawlers automatically *prefetch*
-    these URLs the moment the card is posted — which previously auto-applied a
-    decision ~14s after escalation with no human involved (non-deterministic
-    Approve/Reject). So this handler ONLY renders a confirmation page. The
-    decision is applied solely when a human clicks "Confirm", which fires a POST
-    to this same route (crawlers never POST).
+    SafeLinks/Teams URL unfurling/Outlook preview crawlers prefetch these URLs
+    with a plain GET and cannot execute JavaScript — so the GET itself changes
+    nothing. When a real human's browser opens the page, the inline script fires
+    immediately: it POSTs the decision to the backend, then redirects to the
+    ClaimDetail page in the React SWA so the adjudicator sees the full updated
+    claim. No button click required.
     """
     if decision not in ("Approve", "Reject", "MoreInfo"):
         return HTMLResponse("<h2>Invalid decision value.</h2>", status_code=400)
 
-    label = {"Approve": "Approve", "Reject": "Reject", "MoreInfo": "Request More Info"}.get(decision, decision)
-    color = {"Approve": "#107C10", "Reject": "#A4262C", "MoreInfo": "#0078D4"}.get(decision, "#000")
-    api_base = get_settings().api_base_url.rstrip("/")
+    settings = get_settings()
+    api_base = settings.api_base_url.rstrip("/")
+    frontend_base = settings.frontend_base_url.rstrip("/")
+    claim_detail_url = f"{frontend_base}/claims/{claim_id}"
+
     return HTMLResponse(f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>ClaimSphere — Confirm Decision</title>
-<style>body{{font-family:Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f3f2f1}}
-.card{{background:#fff;border-radius:8px;padding:40px 56px;box-shadow:0 2px 8px rgba(0,0,0,.12);text-align:center;max-width:480px}}
-h1{{color:{color};margin:0 0 8px;font-size:22px}}p{{color:#605e5c;margin:0 0 20px;line-height:1.5}}
-button{{background:{color};color:#fff;border:0;border-radius:6px;padding:12px 28px;font-size:15px;font-weight:600;cursor:pointer}}
-button:disabled{{opacity:.6;cursor:default}}#done{{display:none;color:{color};font-weight:600;margin-top:14px}}</style></head>
-<body><div class="card">
-<h1>Confirm: {label}</h1>
-<p>You are about to <strong>{label.lower()}</strong> claim <strong>{claim_id}</strong>.<br>This decision is final. Please confirm.</p>
-<button id="btn" onclick="confirmDecision()">Confirm {label}</button>
-<div id="done"></div>
+<html><head><meta charset="utf-8"><title>ClaimSphere — Processing…</title>
+<style>body{{font-family:Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f3f2f1;color:#323130;text-align:center}}</style>
+</head>
+<body>
+<div>
+  <p style="font-size:16px;margin:0 0 8px">Recording decision — redirecting to ClaimSphere…</p>
+  <p style="font-size:13px;color:#605e5c">If not redirected in 3 seconds, <a href="{claim_detail_url}">click here</a>.</p>
+</div>
 <script>
-async function confirmDecision() {{
-  const btn = document.getElementById('btn');
-  btn.disabled = true; btn.textContent = 'Submitting…';
+(async function() {{
   try {{
-    const r = await fetch('{api_base}/webhooks/teams-decision', {{
-      method: 'POST', headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{claim_id: {claim_id!r}, decision: {decision!r}, reviewer: {reviewer!r}, notes: {notes!r}}})
+    await fetch('{api_base}/webhooks/teams-decision', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{
+        claim_id: {claim_id!r},
+        decision: {decision!r},
+        reviewer: {reviewer!r},
+        notes: {notes!r}
+      }})
     }});
-    const data = await r.json();
-    btn.style.display = 'none';
-    const done = document.getElementById('done');
-    done.style.display = 'block';
-    done.textContent = data.status === 'already_decided'
-      ? 'A decision was already recorded for this claim.'
-      : 'Recorded — claim {claim_id} marked as {label.lower()}. You can close this tab.';
-  }} catch (e) {{
-    btn.disabled = false; btn.textContent = 'Retry {label}';
-  }}
-}}
+  }} catch (_) {{}}
+  window.location.replace('{claim_detail_url}');
+}})();
 </script>
-</div></body></html>""")
+</body></html>""")
 
 
 @router.get("/health")
