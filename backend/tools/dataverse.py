@@ -183,7 +183,8 @@ class DataverseClient:
             _demo_store[claim_id] = claim_data
             return claim_id
 
-    async def update_claim(self, claim_id: str, updates: dict) -> bool:
+    async def update_claim(self, claim_id: str, updates: dict,
+                           policy_id: str = "", claimant_name: str = "") -> bool:
         if self.settings.demo_mode:
             if claim_id in _demo_store:
                 _demo_store[claim_id].update(updates)
@@ -191,17 +192,35 @@ class DataverseClient:
             return True
 
         try:
+            token = await self._get_token()
+            # Resolve Dataverse GUID: try cache first, then query by policy+claimant
             dv_id = _claim_dv_id.get(claim_id)
+            if not dv_id:
+                # Fallback: query by policy_id + claimant_name from updates or demo store
+                claimant = claimant_name
+                if policy_id and claimant:
+                    async with aiohttp.ClientSession() as session:
+                        filter_url = (
+                            f"{self._base_url}/api/data/v9.2/crcce_claims"
+                            f"?$select=crcce_claimid"
+                            f"&$filter=crcce_policyid eq '{policy_id}'"
+                            f" and crcce_claimantname eq '{claimant}'"
+                            f"&$top=1"
+                        )
+                        async with session.get(filter_url, headers=self._headers(token)) as r:
+                            body = await r.json()
+                            rows = body.get("value", [])
+                            if rows:
+                                dv_id = rows[0].get("crcce_claimid")
+                                _claim_dv_id[claim_id] = dv_id
             if not dv_id:
                 logger.warning("dataverse_update_no_guid", claim_id=claim_id)
                 return False
-            token = await self._get_token()
-            # Map update keys to crcce_ column names (only safe string/number fields)
             mapped = {}
             if "decision" in updates:
-                mapped["crcce_rationale"] = str(updates.get("decision", ""))[:100]
+                mapped["crcce_rationale"] = f"Decision: {updates['decision']}"[:100]
             if "status" in updates:
-                mapped["crcce_description"] = f"Status: {updates['status']}"[:100]
+                mapped["crcce_description"] = f"[{updates.get('decision','')}] Status: {updates['status']}"[:100]
             if not mapped:
                 return True
             url = f"{self._base_url}/api/data/v9.2/crcce_claims({dv_id})"

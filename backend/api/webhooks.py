@@ -87,10 +87,12 @@ async def teams_decision(payload: TeamsDecisionPayload, request: Request):
     try:
         from backend.tools.dataverse import DataverseClient
         dv = DataverseClient()
-        await dv.update_claim(claim_id, {
-            "decision": decision_str,
-            "status": ctx.status.value,
-        })
+        await dv.update_claim(
+            claim_id,
+            {"decision": decision_str, "status": ctx.status.value},
+            policy_id=ctx.submission.policy_id if ctx.submission else "",
+            claimant_name=ctx.submission.claimant.name if ctx.submission else "",
+        )
     except Exception as e:
         logger.warning("teams_decision_dataverse_update_failed", error=str(e))
 
