@@ -68,22 +68,22 @@ async def _check_integrations(settings) -> dict:
                         dv_ok = True
                         dv_note = f"live — {len(body.get('value', []))} rows"
                     else:
-                        # Discover actual custom entity names to help diagnose
+                        # Discover entity names — list all, filter for claim-related
                         async with session.get(
                             f"{base}/api/data/v9.2/EntityDefinitions"
-                            "?$select=LogicalName,EntitySetName"
-                            "&$filter=IsCustomEntity eq true and IsIntersect eq false"
-                            "&$top=20",
+                            "?$select=LogicalName,EntitySetName&$top=200",
                             headers=client._headers(token),
                         ) as meta_resp:
                             meta = await meta_resp.json()
-                            entity_names = [
-                                e.get("EntitySetName") for e in meta.get("value", [])
-                                if "claim" in e.get("LogicalName", "").lower()
-                            ] or [e.get("EntitySetName") for e in meta.get("value", [])][:10]
+                            all_sets = [
+                                e.get("EntitySetName", "")
+                                for e in meta.get("value", [])
+                            ]
+                            claim_sets = [s for s in all_sets if "claim" in s.lower()]
                         dv_note = (
                             f"HTTP {resp.status}: cs_claims not found. "
-                            f"Claim-related entities: {entity_names}"
+                            f"Claim entities: {claim_sets or 'none'} | "
+                            f"Total entities: {len(all_sets)}"
                         )
         except Exception as e:
             dv_note = str(e)[:120]
