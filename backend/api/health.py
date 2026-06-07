@@ -123,6 +123,41 @@ async def _check_integrations(settings) -> dict:
     return results
 
 
+@router.get("/health/dataverse-claim-test")
+async def dataverse_claim_test():
+    """Call create_claim exactly as the orchestrator does and return the raw outcome."""
+    from backend.tools.dataverse import DataverseClient
+    import traceback
+    client = DataverseClient()
+    test_data = {
+        "claim_id": "CLM-ORCHTEST-001",
+        "policy_id": "POL-HEALTH-001",
+        "claim_type": "Health",
+        "status": "APPROVED",
+        "claimant_name": "Test Claimant",
+        "claimant_email": "test@claimsphere.ai",
+        "claim_amount": 500000.0,
+        "incident_date": "2026-06-07",
+        "channel": "WEB",
+        "priority": "HIGH",
+        "fraud_score": 15,
+        "fraud_risk_level": "LOW",
+        "decision": "APPROVED",
+        "approved_amount": 400000.0,
+        "final_payout": 400000.0,
+        "rationale": "Test rationale",
+        "confidence_score": 0.85,
+        "stp_flag": False,
+        "escalated": False,
+        "description": "Orchestrator test claim",
+    }
+    try:
+        result = await client.create_claim(test_data)
+        return {"result": result, "in_demo_store": "CLM-ORCHTEST-001" in __import__('backend.tools.dataverse', fromlist=['_demo_store']).__dict__.get('_demo_store', {})}
+    except Exception as e:
+        return {"error": str(e), "trace": traceback.format_exc()}
+
+
 @router.get("/health/dataverse-write")
 async def dataverse_write_test():
     """Return actual column names for crcce_claim entity from Dataverse metadata."""
