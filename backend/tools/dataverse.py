@@ -148,9 +148,12 @@ class DataverseClient:
             token = await self._get_token()
             url = f"{self._base_url}/api/data/v9.2/crcce_claims"
             payload = {k: v for k, v in self._map_claim(claim_data).items() if v is not None}
-            # Inject the claim number under the environment's primary-name column
+            # Inject claim_id under the primary-name column only if it's not
+            # already mapped (e.g. in this env the primary is crcce_claimantname
+            # which is already mapped — don't overwrite the actual claimant name).
             primary = await self._get_primary_name_attr(token)
-            payload[primary] = claim_data.get("claim_id")
+            if primary not in payload:
+                payload[primary] = claim_data.get("claim_id")
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, json=payload, headers=self._headers(token)) as resp:
                     if resp.status not in (200, 201, 204):
