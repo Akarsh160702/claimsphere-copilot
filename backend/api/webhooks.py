@@ -10,7 +10,8 @@ in a Teams channel, Power Automate POSTs back here. This endpoint:
 The same /webhooks/teams-decision route is embedded in every escalation
 card we send, so Teams buttons work without any additional wiring.
 """
-from fastapi import APIRouter, HTTPException, Request, Header
+from fastapi import APIRouter, HTTPException, Request, Header, Query
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional
 import structlog
@@ -119,6 +120,40 @@ async def teams_decision(payload: TeamsDecisionPayload, request: Request):
         "new_status": ctx.status.value,
         "message": f"Decision '{decision_str}' applied to {claim_id} via Teams.",
     }
+
+
+@router.get("/teams-decision")
+async def teams_decision_redirect(
+    claim_id: str = Query(...),
+    decision: str = Query(...),
+    reviewer: str = Query("teams-adjudicator"),
+    notes: str = Query(""),
+):
+    """
+    Called when an adjudicator clicks Approve/Reject on the Teams Adaptive Card.
+    Action.OpenUrl opens this URL in a browser tab — we process the decision
+    and return an HTML confirmation page.
+    """
+    if decision not in ("Approve", "Reject", "MoreInfo"):
+        return HTMLResponse("<h2>Invalid decision value.</h2>", status_code=400)
+
+    payload = TeamsDecisionPayload(
+        claim_id=claim_id, decision=decision, reviewer=reviewer, notes=notes
+    )
+    # Reuse the POST handler (it already does Dataverse update + in-memory update)
+    result = await teams_decision(payload, request=None)
+
+    label = {"Approve": "Approved", "Reject": "Rejected", "MoreInfo": "Sent for More Info"}.get(decision, decision)
+    color = {"Approve": "#107C10", "Reject": "#A4262C", "MoreInfo": "#0078D4"}.get(decision, "#000")
+    return HTMLResponse(f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>ClaimSphere — Decision Recorded</title>
+<style>body{{font-family:Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f3f2f1}}
+.card{{background:#fff;border-radius:8px;padding:40px 56px;box-shadow:0 2px 8px rgba(0,0,0,.12);text-align:center;max-width:480px}}
+h1{{color:{color};margin:0 0 12px}}p{{color:#605e5c;margin:0}}</style></head>
+<body><div class="card">
+<h1>{label}</h1>
+<p>Claim <strong>{claim_id}</strong> has been {label.lower()}.<br>You can close this tab.</p>
+</div></body></html>""")
 
 
 @router.get("/health")
