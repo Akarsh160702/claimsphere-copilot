@@ -29,7 +29,7 @@ in the cloud. See **`COMPANY-LAPTOP-WORKFLOW.md`** for the full model. In short:
 - **Storage**: Azure Blob Storage (LRS Hot)
 - **Database**: Dataverse (Power Platform, free with M365)
 - **Hosting**: Azure Functions (Consumption plan)
-- **UI**: Streamlit (demo) + Copilot Studio (production)
+- **UI**: React SWA (dashboard) + Copilot Studio (production)
 - **Workflow**: Power Automate + Teams (human-in-loop)
 
 ## Architecture
@@ -54,7 +54,6 @@ in the cloud. See **`COMPANY-LAPTOP-WORKFLOW.md`** for the full model. In short:
 - `backend/orchestrator.py` — Agent pipeline coordinator
 - `backend/agents/` — All 7 agent implementations
 - `backend/tools/` — Azure service clients
-- `streamlit_app.py` — Demo UI (run with `streamlit run streamlit_app.py`)
 - `DEPLOYMENT.md` — Step-by-step Azure setup guide
 - `.env.example` — Environment variables template
 
@@ -63,7 +62,6 @@ in the cloud. See **`COMPANY-LAPTOP-WORKFLOW.md`** for the full model. In short:
 pip install -r requirements.txt
 cp .env.example .env   # fill in Azure credentials
 uvicorn backend.main:app --reload --port 8000
-streamlit run streamlit_app.py
 ```
 
 ## Demo Mode
