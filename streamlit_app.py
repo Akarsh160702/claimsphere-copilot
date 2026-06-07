@@ -6,7 +6,54 @@ import asyncio, sys, os, time, json, random
 from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(__file__))
-os.environ.setdefault("DEMO_MODE", "true")
+
+import requests as _requests
+
+# Backend URL — used for all API calls so claims appear in Dataverse + React dashboard.
+_BACKEND_URL = os.environ.get(
+    "API_BASE_URL",
+    "https://ca-api-u5aqvvvbt34hq.politecliff-7ae23c60.eastus.azurecontainerapps.io",
+).rstrip("/")
+
+
+def _api_load_claims() -> list[dict]:
+    """Fetch the live claims list from the backend and convert to Streamlit format."""
+    try:
+        r = _requests.get(f"{_BACKEND_URL}/claims/", timeout=6)
+        r.raise_for_status()
+        raw = r.json() if isinstance(r.json(), list) else []
+        return [
+            {
+                "id": c.get("claim_id", ""),
+                "type": c.get("claim_type") or "Health",
+                "claimant": c.get("claimant_name", ""),
+                "amount": int(c.get("claim_amount") or 0),
+                "payout": int(c.get("final_payout") or 0),
+                "decision": c.get("decision") or "",
+                "fraud": int(c.get("fraud_score") or 0),
+                "status": c.get("status") or "",
+                "channel": c.get("channel") or "Web",
+                "date": (c.get("submitted_at") or "")[:16].replace("T", " "),
+            }
+            for c in raw
+            if c.get("claim_id")
+        ]
+    except Exception:
+        return []
+
+
+def _api_submit_claim(payload: dict) -> dict | None:
+    """POST a claim to the backend and return the result dict, or None on error."""
+    try:
+        r = _requests.post(
+            f"{_BACKEND_URL}/claims/submit/sync",
+            json=payload,
+            timeout=90,
+        )
+        r.raise_for_status()
+        return r.json()
+    except Exception as exc:
+        return {"error": str(exc)}
 
 import streamlit as st
 import plotly.express as px
@@ -526,31 +573,16 @@ def section_header(title, pill=None, pill_type="blue"):
 
 
 # ─── Demo Seed Data ────────────────────────────────────────────────────────────
-SEED_CLAIMS = [
-    {"id": "CLM-240601-001", "type": "Health",   "claimant": "Arjun Mehta",   "amount": 92000,  "payout": 87000,  "decision": "Approve",  "fraud": 8,  "status": "Approved",           "channel": "Web",   "date": "2026-06-01 09:12"},
-    {"id": "CLM-240601-002", "type": "Motor",    "claimant": "Sneha Reddy",   "amount": 850000, "payout": 0,      "decision": "Escalate", "fraud": 75, "status": "Under Human Review", "channel": "Teams", "date": "2026-06-01 10:45"},
-    {"id": "CLM-240601-003", "type": "Property", "claimant": "Vikram Nair",   "amount": 340000, "payout": 330000, "decision": "Approve",  "fraud": 12, "status": "Approved",           "channel": "Email", "date": "2026-06-01 11:23"},
-    {"id": "CLM-240602-001", "type": "Health",   "claimant": "Priya Kumar",   "amount": 28000,  "payout": 23000,  "decision": "Approve",  "fraud": 5,  "status": "Approved",           "channel": "Web",   "date": "2026-06-02 08:55"},
-    {"id": "CLM-240602-002", "type": "Health",   "claimant": "Ravi Sharma",   "amount": 155000, "payout": 0,      "decision": "Reject",   "fraud": 18, "status": "Rejected",           "channel": "CSR",   "date": "2026-06-02 14:30"},
-    {"id": "CLM-240602-003", "type": "Motor",    "claimant": "Anita Pillai",  "amount": 67000,  "payout": 65000,  "decision": "Approve",  "fraud": 10, "status": "Approved",           "channel": "Web",   "date": "2026-06-02 16:10"},
-    {"id": "CLM-240603-001", "type": "Property", "claimant": "Suresh Iyer",   "amount": 520000, "payout": 0,      "decision": "Escalate", "fraud": 48, "status": "Under Human Review", "channel": "Teams", "date": "2026-06-03 09:05"},
-    {"id": "CLM-240603-002", "type": "Travel",   "claimant": "Meera Singh",   "amount": 42000,  "payout": 40000,  "decision": "Approve",  "fraud": 3,  "status": "Approved",           "channel": "Web",   "date": "2026-06-03 11:30"},
-]
-
-ACTIVITY = [
-    ("green", "CLM-240603-002 approved — ₹40,000 payout initiated", "2 min ago"),
-    ("amber", "CLM-240603-001 escalated to adjudicator queue", "15 min ago"),
-    ("blue",  "CLM-240602-003 documents processed (3 files)", "1 hr ago"),
-    ("green", "CLM-240602-001 approved — STP in 2.8s", "3 hr ago"),
-    ("red",   "CLM-240602-002 rejected — Policy exclusion applied", "5 hr ago"),
-    ("amber", "CLM-240601-002 fraud flag raised (score 75/100)", "Yesterday"),
-    ("green", "CLM-240601-003 property claim settled ₹3,30,000", "Yesterday"),
-]
+ACTIVITY: list[tuple] = []
 
 DOT_COLORS = {"green": "#059669", "amber": "#D97706", "red": "#DC2626", "blue": "#2563EB"}
 
 # ─── Session State ─────────────────────────────────────────────────────────────
-for k, v in [("claims", SEED_CLAIMS[:]), ("chat_history", []), ("last_result", None), ("selected_claim", None)]:
+# Initialise claims from the live backend on first load so the table always
+# reflects real submitted claims, not hardcoded demo rows.
+if "claims" not in st.session_state:
+    st.session_state["claims"] = _api_load_claims()
+for k, v in [("chat_history", []), ("last_result", None), ("selected_claim", None)]:
     if k not in st.session_state:
         st.session_state[k] = v
 
@@ -610,12 +642,20 @@ with st.sidebar:
 # DASHBOARD
 # ══════════════════════════════════════════════════════════════════════════════
 if page == "Dashboard":
-    st.markdown(page_header(
-        "Dashboard",
-        "AI-powered claims processing overview · Azure AI Foundry",
-        "All Systems Operational",
-        "green"
-    ), unsafe_allow_html=True)
+    _hdr_col, _refresh_col = st.columns([5, 1])
+    with _hdr_col:
+        st.markdown(page_header(
+            "Dashboard",
+            "AI-powered claims processing overview · Azure AI Foundry",
+            "All Systems Operational",
+            "green"
+        ), unsafe_allow_html=True)
+    with _refresh_col:
+        st.markdown("<div style='padding-top:1.5rem'>", unsafe_allow_html=True)
+        if st.button("Refresh Data", use_container_width=True):
+            st.session_state["claims"] = _api_load_claims()
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     total     = len(st.session_state.claims)
     approved  = sum(1 for c in st.session_state.claims if "Approv"  in c["decision"])
@@ -711,16 +751,32 @@ if page == "Dashboard":
 
     with col_feed:
         st.markdown(section_header("Live Activity", "Live", "green"), unsafe_allow_html=True)
+        _dec_color = {"Approve": "green", "Reject": "red", "Escalate": "amber"}
         items_html = ""
-        for color, text, t in ACTIVITY:
-            dot_css = DOT_COLORS.get(color, "#94A3B8")
+        _recent = list(reversed(st.session_state.claims))[:7]
+        for c in _recent:
+            _col  = _dec_color.get(c.get("decision", ""), "blue")
+            _dot  = DOT_COLORS.get(_col, "#94A3B8")
+            _dec  = c.get("decision", "")
+            _cid  = c.get("id", "")
+            _amt  = c.get("amount", 0)
+            _pay  = c.get("payout", 0)
+            if _dec == "Approve":
+                _txt = f"{_cid} approved — ₹{_pay:,} payout"
+            elif _dec == "Reject":
+                _txt = f"{_cid} rejected — policy exclusion"
+            else:
+                _txt = f"{_cid} escalated to human review"
+            _dt   = c.get("date", "")
             items_html += (
                 f'<div class="activity-item">'
-                f'<div class="activity-dot" style="background:{dot_css}"></div>'
-                f'<div><div class="activity-text">{text}</div>'
-                f'<div class="activity-time">{t}</div></div>'
+                f'<div class="activity-dot" style="background:{_dot}"></div>'
+                f'<div><div class="activity-text">{_txt}</div>'
+                f'<div class="activity-time">{_dt}</div></div>'
                 f'</div>'
             )
+        if not items_html:
+            items_html = '<div style="color:#94A3B8;font-size:0.82rem;padding:0.5rem">No claims yet. Submit a claim to see activity.</div>'
         st.markdown(
             f'<div class="card" style="padding:1rem 1.25rem">{items_html}</div>',
             unsafe_allow_html=True
@@ -845,20 +901,25 @@ elif page == "Submit Claim":
         progress_ph = st.empty()
 
         if submitted:
-            from backend.models.claim import ClaimSubmission, ClaimantInfo, Channel, ClaimType
-            from backend.orchestrator import ClaimOrchestrator
+            # Determine which claim type was being filled based on the active tab
+            # (use Health by default; Motor/Property if their policy IDs differ)
+            if policy_id_m != "POL-MOTOR-001" or float(amount_m) != 850000.0:
+                _ptype, _pid, _name, _email, _phone, _amount, _date, _desc = (
+                    "Motor", policy_id_m, name_m, email_m, "+91-9999999999",
+                    float(amount_m), str(date_m), desc_m,
+                )
+            elif policy_id_p != "POL-PROPERTY-001" or float(amount_p) != 320000.0:
+                _ptype, _pid, _name, _email, _phone, _amount, _date, _desc = (
+                    "Property", policy_id_p, name_p, email_p, "+91-9999999999",
+                    float(amount_p), str(date_p), desc_p,
+                )
+            else:
+                _ptype, _pid, _name, _email, _phone, _amount, _date, _desc = (
+                    "Health", policy_id_h, name_h, email_h, phone_h,
+                    float(amount_h), str(date_h), desc_h,
+                )
 
-            submission = ClaimSubmission(
-                policy_id="POL-HEALTH-001",
-                claimant=ClaimantInfo(name="Rahul Sharma", email="rahul.sharma@demo.com", phone="+91-9876543210"),
-                claim_type=ClaimType.HEALTH,
-                claim_amount=float(amount_h),
-                incident_date=str(date_h),
-                description=desc_h,
-                channel=Channel.WEB,
-                document_urls=[],
-            )
-
+            # Animate the pipeline steps while the real HTTP call runs in parallel
             progress_ph.progress(0, text="Starting AI pipeline…")
             for i, (num, name, desc, model) in enumerate(AGENTS):
                 agent_phs[i].markdown(
@@ -882,54 +943,68 @@ elif page == "Submit Claim":
                     unsafe_allow_html=True
                 )
 
-            progress_ph.progress(100, text="Complete")
-            time.sleep(0.3)
+            progress_ph.progress(100, text="Submitting to backend…")
+
+            # Submit via the deployed backend API so the claim appears in Dataverse
+            # and the React SWA dashboard in addition to this table.
+            api_payload = {
+                "policy_id": _pid,
+                "claimant": {"name": _name, "email": _email, "phone": _phone},
+                "claim_type": _ptype,
+                "claim_amount": _amount,
+                "incident_date": _date,
+                "description": _desc,
+                "channel": "Web",
+                "document_urls": [],
+            }
+            result_json = _api_submit_claim(api_payload)
+
             progress_ph.empty()
 
-            result = run_async(ClaimOrchestrator().process_claim(submission))
-            st.session_state.last_result = result
-            adj   = result.adjudication_result
-            fraud = result.fraud_result
-
-            if adj:
-                decision  = adj.decision.value
+            if result_json and "error" not in result_json:
+                adj_j   = result_json.get("adjudication_result") or {}
+                fraud_j = result_json.get("fraud_result") or {}
+                decision  = (adj_j.get("decision") or "Escalate")
                 style_map = {"Approve": "d-approve", "Reject": "d-reject", "Escalate": "d-escalate"}
                 label_map = {"Approve": "Claim Approved", "Reject": "Claim Rejected", "Escalate": "Escalated for Review"}
                 result_ph.markdown(
                     f'<div class="decision-card {style_map.get(decision, "d-escalate")}">'
                     f'<div class="decision-title">{label_map.get(decision, decision)}</div>'
                     f'<div class="decision-row">'
-                    f'<div class="decision-item"><label>Claim Amount</label><div class="val">₹{adj.claim_amount:,.0f}</div></div>'
-                    f'<div class="decision-item"><label>Approved</label><div class="val">₹{adj.approved_amount:,.0f}</div></div>'
-                    f'<div class="decision-item"><label>Deductible</label><div class="val">₹{adj.deductible_applied:,.0f}</div></div>'
-                    f'<div class="decision-item"><label>Final Payout</label><div class="val" style="font-size:1.2rem">₹{adj.final_payout:,.0f}</div></div>'
-                    f'<div class="decision-item"><label>Confidence</label><div class="val">{adj.confidence_score:.0%}</div></div>'
-                    f'<div class="decision-item"><label>Fraud Score</label><div class="val">{fraud.fraud_score if fraud else 0} / 100</div></div>'
+                    f'<div class="decision-item"><label>Claim Amount</label><div class="val">₹{adj_j.get("claim_amount", _amount):,.0f}</div></div>'
+                    f'<div class="decision-item"><label>Approved</label><div class="val">₹{adj_j.get("approved_amount", 0):,.0f}</div></div>'
+                    f'<div class="decision-item"><label>Deductible</label><div class="val">₹{adj_j.get("deductible_applied", 0):,.0f}</div></div>'
+                    f'<div class="decision-item"><label>Final Payout</label><div class="val" style="font-size:1.2rem">₹{adj_j.get("final_payout", 0):,.0f}</div></div>'
+                    f'<div class="decision-item"><label>Confidence</label><div class="val">{adj_j.get("confidence_score", 0):.0%}</div></div>'
+                    f'<div class="decision-item"><label>Fraud Score</label><div class="val">{fraud_j.get("fraud_score", 0)} / 100</div></div>'
                     f'</div></div>',
                     unsafe_allow_html=True
                 )
 
                 new_row = {
-                    "id": result.claim_id,
-                    "type": result.claim_type.value if result.claim_type else "Health",
-                    "claimant": submission.claimant.name,
-                    "amount": int(submission.claim_amount),
-                    "payout": int(adj.final_payout),
+                    "id": result_json.get("claim_id", ""),
+                    "type": result_json.get("claim_type") or _ptype,
+                    "claimant": _name,
+                    "amount": int(_amount),
+                    "payout": int(adj_j.get("final_payout") or 0),
                     "decision": decision,
-                    "fraud": fraud.fraud_score if fraud else 0,
-                    "status": result.status.value,
+                    "fraud": int(fraud_j.get("fraud_score") or 0),
+                    "status": result_json.get("status") or "",
                     "channel": "Web",
                     "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 }
                 st.session_state.claims.append(new_row)
 
                 with st.expander("AI Rationale"):
-                    st.markdown(adj.rationale)
+                    st.markdown(adj_j.get("rationale") or "—")
                 with st.expander("Audit Trail"):
-                    for entry in result.audit_trail:
+                    for entry in result_json.get("audit_trail") or []:
                         col_a, col_b = st.columns([1, 3])
-                        col_a.markdown(f"`{entry.agent_name}`")
-                        col_b.markdown(f"**{entry.action}** — {entry.timestamp.strftime('%H:%M:%S')}")
+                        col_a.markdown(f"`{entry.get('agent_name', '')}`")
+                        col_b.markdown(f"**{entry.get('action', '')}** — {entry.get('timestamp', '')[:19]}")
+            else:
+                err = (result_json or {}).get("error", "Unknown error")
+                st.error(f"Submission failed: {err}")
         else:
             result_ph.markdown(
                 '<div style="background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:10px;'
@@ -949,7 +1024,7 @@ elif page == "Claims Register":
         "Full claims registry with real-time status and quick actions"
     ), unsafe_allow_html=True)
 
-    fc1, fc2, fc3, fc4 = st.columns([2, 1, 1, 1])
+    fc1, fc2, fc3, fc4, fc5 = st.columns([2, 1, 1, 1, 0.6])
     with fc1:
         search = st.text_input("Search", placeholder="Claim ID or claimant name…", label_visibility="collapsed")
     with fc2:
@@ -958,6 +1033,10 @@ elif page == "Claims Register":
         filter_dec  = st.selectbox("Decision", ["All Decisions", "Approve", "Reject", "Escalate"],     label_visibility="collapsed")
     with fc4:
         sort_by     = st.selectbox("Sort",     ["Newest", "Amount ↓", "Amount ↑", "Fraud ↓"],         label_visibility="collapsed")
+    with fc5:
+        if st.button("Refresh", use_container_width=True):
+            st.session_state["claims"] = _api_load_claims()
+            st.rerun()
 
     claims = st.session_state.claims
     if search:

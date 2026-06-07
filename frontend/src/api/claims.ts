@@ -29,10 +29,8 @@ export async function fetchClaims(): Promise<ClaimsPayload> {
   try {
     const res = await apiClient.get<ClaimListItem[]>("/claims/");
     const live = Array.isArray(res.data) ? res.data : [];
-    if (live.length === 0) {
-      return { claims: generateSyntheticClaims(), source: "synthetic" };
-    }
-    // Backfill fields the list endpoint may omit so the UI is consistent.
+    // Empty list is a valid clean state (e.g. after admin reset) — don't replace
+    // it with synthetic data, just show an empty table in Live Mode.
     const normalized = live.map((c, i) => ({
       ...c,
       fraud_score: c.fraud_score ?? Math.floor(((i * 37) % 100) / 2),
@@ -40,6 +38,7 @@ export async function fetchClaims(): Promise<ClaimsPayload> {
     }));
     return { claims: normalized, source: "live" };
   } catch {
+    // Backend unreachable — fall back to synthetic so the demo stays presentable.
     return { claims: generateSyntheticClaims(), source: "synthetic" };
   }
 }

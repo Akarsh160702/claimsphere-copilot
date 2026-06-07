@@ -94,6 +94,8 @@ async def list_claims():
             "submitted_at": ctx.created_at.isoformat(),
             "decision": ctx.adjudication_result.decision.value if ctx.adjudication_result else None,
             "final_payout": ctx.adjudication_result.final_payout if ctx.adjudication_result else None,
+            "fraud_score": ctx.fraud_result.fraud_score if ctx.fraud_result else None,
+            "channel": ctx.submission.channel.value if ctx.submission.channel else "Web",
         }
         for ctx in _processing_contexts.values()
     ]
