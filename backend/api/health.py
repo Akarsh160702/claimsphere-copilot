@@ -48,15 +48,33 @@ async def _check_integrations(settings) -> dict:
         "container": settings.storage_container_name,
     }
 
-    # Dataverse
+    # Dataverse — attempt a real API call to verify connectivity
+    dv_ok = False
+    dv_note = "not configured"
+    if settings.dataverse_url and settings.dataverse_client_id and settings.dataverse_client_secret:
+        try:
+            from backend.tools.dataverse import DataverseClient
+            client = DataverseClient()
+            token = await client._get_token()
+            import aiohttp
+            base = settings.dataverse_url.rstrip("/")
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{base}/api/data/v9.2/cs_claims?$top=1",
+                    headers=client._headers(token),
+                ) as resp:
+                    body = await resp.json()
+                    if resp.status == 200:
+                        dv_ok = True
+                        dv_note = f"live — {len(body.get('value', []))} rows"
+                    else:
+                        dv_note = f"HTTP {resp.status}: {body.get('error', {}).get('message', str(body))[:120]}"
+        except Exception as e:
+            dv_note = str(e)[:120]
     results["dataverse"] = {
-        "ok": bool(
-            settings.dataverse_url
-            and settings.dataverse_client_id
-            and settings.dataverse_client_secret
-        ),
+        "ok": dv_ok,
         "url": settings.dataverse_url or "not configured",
-        "note": "falls back to in-memory if unavailable",
+        "note": dv_note,
     }
 
     # Power Automate / Teams
