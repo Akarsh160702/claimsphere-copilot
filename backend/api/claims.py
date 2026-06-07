@@ -115,6 +115,11 @@ async def record_human_decision(claim_id: str, decision: dict):
     notes = decision.get("notes", "Human adjudicator decision")
     adjuster_id = decision.get("adjuster_id", "human-adjudicator")
 
+    # First decision wins — prevents a second browser tab from double-applying
+    already = any(a.action in ("HUMAN_DECISION", "TEAMS_HUMAN_DECISION") for a in ctx.audit_trail)
+    if already:
+        return {"claim_id": claim_id, "decision": human_decision, "status": ctx.status.value, "note": "already_decided"}
+
     if ctx.adjudication_result:
         from backend.models.claim import Decision
         ctx.adjudication_result.decision = Decision(human_decision)

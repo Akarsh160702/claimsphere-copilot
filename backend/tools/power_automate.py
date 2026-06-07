@@ -179,13 +179,13 @@ def _build_adaptive_card(
             {
                 "type": "Action.OpenUrl",
                 "title": "Approve Claim",
-                "url": f"{callback_url}?claim_id={claim_id}&decision=Approve&reviewer=teams-adjudicator",
+                "url": f"{_frontend_base()}/claims/{claim_id}?decision=Approve&reviewer=teams-adjudicator",
                 "style": "positive",
             },
             {
                 "type": "Action.OpenUrl",
                 "title": "Reject Claim",
-                "url": f"{callback_url}?claim_id={claim_id}&decision=Reject&reviewer=teams-adjudicator",
+                "url": f"{_frontend_base()}/claims/{claim_id}?decision=Reject&reviewer=teams-adjudicator",
                 "style": "destructive",
             },
             {
