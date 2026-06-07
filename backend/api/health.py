@@ -140,7 +140,6 @@ async def dataverse_write_test():
             "crcce_policyid":       "POL-TEST-001",
             "crcce_claimantname":   "Health Check Test",
             "crcce_claimantemail":  "test@claimsphere.ai",
-            "crcce_status":         "Test",
             "crcce_claimtype":      "Health",
             "crcce_claimamount":    500000.0,
             "crcce_incidentdate":   "2026-06-07",

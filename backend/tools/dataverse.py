@@ -59,28 +59,29 @@ class DataverseClient:
 
     @staticmethod
     def _map_claim(d: dict) -> dict:
-        """Translate orchestrator keys → crcce_ Dataverse column names."""
+        """Translate orchestrator keys → crcce_ Dataverse column names.
+        Note: crcce_status is a Choice (Edm.Int32) in this environment — omitted to avoid type errors.
+        """
         return {
-            "crcce_claimnumber":   d.get("claim_id"),
-            "crcce_policyid":      d.get("policy_id"),
-            "crcce_claimtype":     d.get("claim_type"),
-            "crcce_status":        d.get("status"),
-            "crcce_claimantname":  d.get("claimant_name"),
-            "crcce_claimantemail": d.get("claimant_email"),
-            "crcce_claimamount":   d.get("claim_amount"),
-            "crcce_incidentdate":  d.get("incident_date"),
-            "crcce_channel":       d.get("channel"),
-            "crcce_priority":      d.get("priority"),
-            "crcce_fraudscore":    d.get("fraud_score"),
-            "crcce_fraudrisklevel":d.get("fraud_risk_level"),
-            "crcce_decision":      d.get("decision"),
-            "crcce_approvedamount":d.get("approved_amount"),
-            "crcce_finalpayout":   d.get("final_payout"),
-            "crcce_rationale":     d.get("rationale"),
+            "crcce_claimnumber":    d.get("claim_id"),
+            "crcce_policyid":       d.get("policy_id"),
+            "crcce_claimtype":      d.get("claim_type"),
+            "crcce_claimantname":   d.get("claimant_name"),
+            "crcce_claimantemail":  d.get("claimant_email"),
+            "crcce_claimamount":    d.get("claim_amount"),
+            "crcce_incidentdate":   d.get("incident_date"),
+            "crcce_channel":        d.get("channel"),
+            "crcce_priority":       d.get("priority"),
+            "crcce_fraudscore":     d.get("fraud_score"),
+            "crcce_fraudrisklevel": d.get("fraud_risk_level"),
+            "crcce_decision":       d.get("decision"),
+            "crcce_approvedamount": d.get("approved_amount"),
+            "crcce_finalpayout":    d.get("final_payout"),
+            "crcce_rationale":      d.get("rationale"),
             "crcce_confidencescore":d.get("confidence_score"),
-            "crcce_stpflag":       d.get("stp_flag"),
-            "crcce_escalated":     d.get("escalated"),
-            "crcce_description":   d.get("description"),
+            "crcce_stpflag":        d.get("stp_flag"),
+            "crcce_escalated":      d.get("escalated"),
+            "crcce_description":    d.get("description"),
         }
 
     @staticmethod
