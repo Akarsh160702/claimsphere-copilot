@@ -118,10 +118,8 @@ class DataverseClient:
             "crcce_incidentdate":  incident or None,
             "crcce_rationale":     (d.get("rationale") or "")[:100],
             "crcce_description":   (
-                f"[{claim_type}] [{priority}] Status: {status} | "
-                f"Decision: {decision} | Fraud Risk: {fraud_risk} | "
-                f"{d.get('description', '')}"
-            ),
+                f"[{claim_type}][{decision}][{fraud_risk}] {d.get('description', '')}"
+            )[:100],
         }
 
     @staticmethod
