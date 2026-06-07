@@ -10,12 +10,16 @@ import aiohttp
 
 from backend.config import get_settings
 
+from collections import deque
 logger = structlog.get_logger()
 
 # In-memory store for demo mode / local dev
 _demo_store: dict[str, dict] = {}
 _demo_docs: dict[str, dict] = {}
 _demo_logs: list[dict] = []
+
+# Last 10 Dataverse write errors — exposed via /health/persist-errors
+_dv_errors: deque = deque(maxlen=10)
 
 
 class DataverseClient:
@@ -160,6 +164,12 @@ class DataverseClient:
                         body = await resp.text()
                         logger.error("dataverse_create_claim_api_error",
                                      status=resp.status, body=body[:300])
+                        _dv_errors.append({
+                            "status": resp.status,
+                            "payload_keys": list(payload.keys()),
+                            "error": body[:500],
+                            "ts": datetime.utcnow().isoformat(),
+                        })
                         raise RuntimeError(f"Dataverse {resp.status}: {body[:200]}")
                     result = await resp.json() if resp.status != 204 else {}
                     return result.get("crcce_claimid", claim_data.get("claim_id", ""))

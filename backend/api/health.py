@@ -160,9 +160,13 @@ async def dataverse_claim_test():
 
 @router.get("/health/persist-errors")
 async def persist_errors():
-    """Return the last 10 _persist_context errors with full tracebacks."""
+    """Return the last 10 persist errors (orchestrator + Dataverse write failures)."""
     from backend.orchestrator import _persist_errors
-    return {"errors": list(_persist_errors)}
+    from backend.tools.dataverse import _dv_errors
+    return {
+        "orchestrator_errors": list(_persist_errors),
+        "dataverse_write_errors": list(_dv_errors),
+    }
 
 
 @router.get("/health/dataverse-write")
