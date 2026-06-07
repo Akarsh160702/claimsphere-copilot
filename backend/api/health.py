@@ -27,17 +27,19 @@ async def health_check():
 async def _check_integrations(settings) -> dict:
     results = {}
 
-    # Azure OpenAI
+    # Azure OpenAI — ok if endpoint is set (key optional; managed identity used in Azure)
     results["azure_openai"] = {
-        "ok": bool(settings.azure_openai_endpoint and settings.azure_openai_api_key),
+        "ok": bool(settings.azure_openai_endpoint),
         "endpoint": settings.azure_openai_endpoint or "not configured",
+        "auth": "api-key" if settings.azure_openai_api_key else "managed-identity",
     }
 
-    # Azure AI Search
+    # Azure AI Search — ok if endpoint is set (key optional; managed identity used in Azure)
     results["ai_search"] = {
-        "ok": bool(settings.search_endpoint and settings.search_admin_key),
+        "ok": bool(settings.search_endpoint),
         "endpoint": settings.search_endpoint or "not configured",
         "index": settings.search_index_name,
+        "auth": "api-key" if settings.search_admin_key else "managed-identity",
     }
 
     # Azure Blob Storage
@@ -63,10 +65,11 @@ async def _check_integrations(settings) -> dict:
         "configured": bool(settings.power_automate_webhook_url),
     }
 
-    # Document Intelligence
+    # Document Intelligence — ok if endpoint is set (key optional; managed identity used in Azure)
     results["document_intelligence"] = {
-        "ok": bool(settings.doc_intelligence_endpoint and settings.doc_intelligence_key),
+        "ok": bool(settings.doc_intelligence_endpoint),
         "endpoint": settings.doc_intelligence_endpoint or "not configured",
+        "auth": "api-key" if settings.doc_intelligence_key else "managed-identity",
     }
 
     # Application Insights
