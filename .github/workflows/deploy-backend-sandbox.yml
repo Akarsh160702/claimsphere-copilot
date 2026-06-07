@@ -91,7 +91,7 @@ jobs:
               "POWER_AUTOMATE_WEBHOOK_URL=${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}" \
               "API_BASE_URL=https://ca-api-u5aqvvvbt34hq.politecliff-7ae23c60.eastus.azurecontainerapps.io" \
               "FRONTEND_BASE_URL=https://orange-beach-00e4c8e0f.7.azurestaticapps.net" \
-              "DATAVERSE_URL=https://orge4029045d6.crm.dynamics.com" \
+              "DATAVERSE_URL=${{ secrets.DATAVERSE_URL }}" \
               "DATAVERSE_TENANT_ID=${{ secrets.AZURE_SANDBOX_TENANT_ID }}" \
               "DATAVERSE_CLIENT_ID=${{ secrets.AZURE_SANDBOX_CLIENT_ID }}" \
               "DATAVERSE_CLIENT_SECRET=${{ secrets.DATAVERSE_CLIENT_SECRET }}"
