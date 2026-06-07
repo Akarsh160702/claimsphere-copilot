@@ -14,8 +14,10 @@ Transport:
 """
 
 import asyncio
+import hashlib
 import json
 import uuid
+from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -30,6 +32,18 @@ router = APIRouter(prefix="/mcp", tags=["MCP"])
 # In-memory SSE session store  {session_id: asyncio.Queue}
 # ---------------------------------------------------------------------------
 _sessions: dict[str, asyncio.Queue] = {}
+
+# ---------------------------------------------------------------------------
+# Idempotency state — prevents duplicate Dataverse rows when Copilot Studio
+# retries the submit_claim MCP call (e.g. on timeout or parallel invocations).
+#
+# _submission_events:    sub_key → asyncio.Event  (set when processing finishes)
+# _submission_claim_ids: sub_key → claim_id       (set after process_claim)
+#
+# sub_key = MD5[:16] of "policy_id|claimant_name|amount|incident_date"
+# ---------------------------------------------------------------------------
+_submission_events: dict[str, asyncio.Event] = {}
+_submission_claim_ids: dict[str, str] = {}
 
 # ---------------------------------------------------------------------------
 # Tool definitions (MCP schema)
@@ -195,34 +209,91 @@ async def _tool_submit_claim(args: dict) -> list[dict]:
     from datetime import date
     from backend.models.claim import ClaimSubmission, ClaimantInfo, Channel
     from backend.api.claims import _processing_contexts, get_orchestrator
-    sub = ClaimSubmission(
-        policy_id=args["policy_id"],
-        claimant=ClaimantInfo(
-            name=args["claimant_name"],
-            email=args.get("claimant_email", "claimant@claimsphere.ai"),
-            phone=args.get("claimant_phone", "9999999999"),
-        ),
-        claim_type=args.get("claim_type"),
-        claim_amount=float(args["claim_amount"]),
-        incident_date=args.get("incident_date", date.today().isoformat()),
-        description=args["description"],
-        channel=Channel.WEB,
-    )
-    orchestrator = get_orchestrator()
-    ctx = await orchestrator.process_claim(sub)
-    _processing_contexts[ctx.claim_id] = ctx
-    adj = ctx.adjudication_result
-    fraud = ctx.fraud_result
-    result = {
-        "claim_id": ctx.claim_id,
-        "status": ctx.status.value,
-        "decision": adj.decision.value if adj else None,
-        "approved_amount": adj.approved_amount if adj else None,
-        "fraud_score": fraud.fraud_score if fraud else None,
-        "rationale": adj.rationale if adj else None,
-        "message": f"Claim submitted and processed. Use get_claim_status with claim_id={ctx.claim_id} to check again.",
-    }
-    return [{"type": "text", "text": json.dumps(result, indent=2, default=str)}]
+
+    policy_id = args["policy_id"]
+    claimant_name = args["claimant_name"]
+    claim_amount = float(args["claim_amount"])
+    incident_date = args.get("incident_date", date.today().isoformat())
+
+    # Stable idempotency key — identical for all Copilot retries of the same claim
+    sub_key = hashlib.md5(
+        f"{policy_id}|{claimant_name}|{claim_amount:.2f}|{incident_date}".encode()
+    ).hexdigest()[:16]
+
+    def _build_result(ctx) -> list[dict]:
+        adj = ctx.adjudication_result
+        fraud = ctx.fraud_result
+        return [{"type": "text", "text": json.dumps({
+            "claim_id": ctx.claim_id,
+            "status": ctx.status.value,
+            "decision": adj.decision.value if adj else None,
+            "approved_amount": adj.approved_amount if adj else None,
+            "fraud_score": fraud.fraud_score if fraud else None,
+            "rationale": adj.rationale if adj else None,
+            "message": f"Claim processed. Use get_claim_status with claim_id={ctx.claim_id} to check again.",
+        }, indent=2, default=str)}]
+
+    # --- Level 1: return completed claim from memory (retry after timeout) ---
+    cutoff = datetime.utcnow() - timedelta(minutes=3)
+    for ctx in list(_processing_contexts.values()):
+        if (
+            ctx.submission.policy_id == policy_id
+            and ctx.submission.claimant.name == claimant_name
+            and abs(ctx.submission.claim_amount - claim_amount) < 0.01
+            and ctx.created_at >= cutoff
+            and ctx.adjudication_result is not None
+        ):
+            logger.info("mcp_submit_dedup_completed", claim_id=ctx.claim_id)
+            return _build_result(ctx)
+
+    # --- Level 2: wait for in-flight submission (concurrent parallel calls) ---
+    if sub_key in _submission_events:
+        ev = _submission_events[sub_key]
+        logger.info("mcp_submit_dedup_inflight", key=sub_key)
+        try:
+            await asyncio.wait_for(asyncio.shield(ev.wait()), timeout=50.0)
+        except asyncio.TimeoutError:
+            pass
+        cid = _submission_claim_ids.get(sub_key)
+        ctx = _processing_contexts.get(cid) if cid else None
+        if ctx and ctx.adjudication_result is not None:
+            return _build_result(ctx)
+        # Timed out or context gone — fall through to create a new claim
+
+    # --- Level 3: start a fresh pipeline run ---
+    ev = asyncio.Event()
+    _submission_events[sub_key] = ev
+
+    try:
+        sub = ClaimSubmission(
+            policy_id=policy_id,
+            claimant=ClaimantInfo(
+                name=claimant_name,
+                email=args.get("claimant_email", "claimant@claimsphere.ai"),
+                phone=args.get("claimant_phone", "9999999999"),
+            ),
+            claim_type=args.get("claim_type"),
+            claim_amount=claim_amount,
+            incident_date=incident_date,
+            description=args["description"],
+            channel=Channel.WEB,
+        )
+        orchestrator = get_orchestrator()
+        ctx = await orchestrator.process_claim(sub)
+        _processing_contexts[ctx.claim_id] = ctx
+        _submission_claim_ids[sub_key] = ctx.claim_id
+        ev.set()
+        return _build_result(ctx)
+    except Exception:
+        ev.set()  # Unblock any waiting duplicate even on failure
+        raise
+    finally:
+        # Remove dedup key after 3 min so intentional re-submissions are allowed
+        async def _cleanup_key():
+            await asyncio.sleep(180)
+            _submission_events.pop(sub_key, None)
+            _submission_claim_ids.pop(sub_key, None)
+        asyncio.create_task(_cleanup_key())
 
 
 async def _tool_search_policy(args: dict) -> list[dict]:

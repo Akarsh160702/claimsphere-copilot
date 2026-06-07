@@ -23,7 +23,12 @@ async def reset_all_claims():
     in_memory_count = len(_processing_contexts)
     _processing_contexts.clear()
 
-    # 2. Clear Dataverse + the GUID cache
+    # 2. Clear MCP idempotency state so the same inputs can be re-submitted
+    from backend.api.mcp import _submission_events, _submission_claim_ids
+    _submission_events.clear()
+    _submission_claim_ids.clear()
+
+    # 3. Clear Dataverse + the GUID cache
     from backend.tools.dataverse import DataverseClient, _dv_errors
     dv = DataverseClient()
     dv_result = await dv.delete_all_claims()
