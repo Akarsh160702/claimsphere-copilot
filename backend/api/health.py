@@ -135,24 +135,26 @@ async def dataverse_write_test():
         client = DataverseClient()
         token = await client._get_token()
         base = settings.dataverse_url.rstrip("/")
+        test_record = {
+            "crcce_name":          "CLM-TEST-WRITE",
+            "crcce_policyid":      "POL-TEST-001",
+            "crcce_claimantname":  "Health Check Test",
+            "crcce_claimantemail": "test@claimsphere.ai",
+            "crcce_claimamount":   500000.0,
+            "crcce_approvedamount":400000.0,
+            "crcce_fraudscore":    15.0,
+            "crcce_incidentdate":  "2026-06-07T00:00:00Z",
+            "crcce_rationale":     "Automated write test",
+            "crcce_description":   "[Health] [HIGH] Status: APPROVED | Decision: APPROVED | Fraud Risk: LOW | Write test",
+        }
         async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{base}/api/data/v9.2/EntityDefinitions(LogicalName='crcce_claim')"
-                "/Attributes?$select=LogicalName,DisplayName,AttributeType"
-                "&$filter=AttributeType ne 'Virtual' and IsCustomAttribute eq true"
-                "&$top=50",
+            async with session.post(
+                f"{base}/api/data/v9.2/crcce_claims",
+                json=test_record,
                 headers=client._headers(token),
             ) as resp:
-                body = await resp.json()
-                cols = [
-                    {
-                        "logical_name": a.get("LogicalName"),
-                        "display_name": a.get("DisplayName", {}).get("UserLocalizedLabel", {}).get("Label"),
-                        "type": a.get("AttributeType"),
-                    }
-                    for a in body.get("value", [])
-                ]
-                return {"entity": "crcce_claim", "custom_columns": cols, "count": len(cols)}
+                body = await resp.text()
+                return {"status": resp.status, "body": body[:300]}
     except Exception as e:
         return {"error": str(e)}
 

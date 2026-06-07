@@ -59,32 +59,40 @@ class DataverseClient:
 
     @staticmethod
     def _map_claim(d: dict) -> dict:
-        """Translate orchestrator keys → crcce_ Dataverse column names.
-        Choice columns (crcce_status, crcce_claimtype, crcce_channel, crcce_priority,
-        crcce_decision, crcce_fraudrisklevel) are Edm.Int32 in this environment and
-        cannot accept string values — stored in rationale/description as plain text instead.
+        """Translate orchestrator keys → verified crcce_ Dataverse column names.
+
+        Columns confirmed from EntityDefinitions metadata:
+          String:   crcce_name (primary), crcce_policyid, crcce_claimantname, crcce_claimantemail
+          Money:    crcce_claimamount, crcce_approvedamount
+          Decimal:  crcce_fraudscore
+          DateTime: crcce_incidentdate  (needs full ISO-8601, not date-only)
+          Memo:     crcce_rationale, crcce_description
+          Picklist: crcce_claimtype, crcce_status, crcce_decision, crcce_priority (skipped — Int32)
         """
-        decision = d.get("decision", "")
-        fraud_risk = d.get("fraud_risk_level", "")
+        incident = d.get("incident_date", "")
+        # Dataverse DateTime requires full ISO-8601
+        if incident and len(incident) == 10:
+            incident = incident + "T00:00:00Z"
+
         claim_type = d.get("claim_type", "")
-        status = d.get("status", "")
+        status     = d.get("status", "")
+        decision   = d.get("decision", "")
+        priority   = d.get("priority", "")
+        fraud_risk = d.get("fraud_risk_level", "")
+
         return {
-            "crcce_claimnumber":    d.get("claim_id"),
-            "crcce_policyid":       d.get("policy_id"),
-            "crcce_claimantname":   d.get("claimant_name"),
-            "crcce_claimantemail":  d.get("claimant_email"),
-            "crcce_claimamount":    d.get("claim_amount"),
-            "crcce_incidentdate":   d.get("incident_date"),
-            "crcce_fraudscore":     d.get("fraud_score"),
-            "crcce_approvedamount": d.get("approved_amount"),
-            "crcce_finalpayout":    d.get("final_payout"),
-            "crcce_confidencescore":d.get("confidence_score"),
-            "crcce_stpflag":        d.get("stp_flag"),
-            "crcce_escalated":      d.get("escalated"),
-            "crcce_rationale":      d.get("rationale"),
-            "crcce_description":    (
-                f"[{claim_type}] Status: {status} | "
-                f"Decision: {decision} | Risk: {fraud_risk} | "
+            "crcce_name":          d.get("claim_id"),          # primary name column
+            "crcce_policyid":      d.get("policy_id"),
+            "crcce_claimantname":  d.get("claimant_name"),
+            "crcce_claimantemail": d.get("claimant_email"),
+            "crcce_claimamount":   d.get("claim_amount"),
+            "crcce_approvedamount":d.get("approved_amount"),
+            "crcce_fraudscore":    float(d["fraud_score"]) if d.get("fraud_score") is not None else None,
+            "crcce_incidentdate":  incident or None,
+            "crcce_rationale":     d.get("rationale"),
+            "crcce_description":   (
+                f"[{claim_type}] [{priority}] Status: {status} | "
+                f"Decision: {decision} | Fraud Risk: {fraud_risk} | "
                 f"{d.get('description', '')}"
             ),
         }
