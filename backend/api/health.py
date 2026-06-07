@@ -60,7 +60,7 @@ async def _check_integrations(settings) -> dict:
             base = settings.dataverse_url.rstrip("/")
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    f"{base}/api/data/v9.2/cs_claims?$top=1",
+                    f"{base}/api/data/v9.2/crcce_claims?$top=1",
                     headers=client._headers(token),
                 ) as resp:
                     body = await resp.json()
@@ -81,7 +81,7 @@ async def _check_integrations(settings) -> dict:
                             ]
                             claim_sets = [s for s in all_sets if "claim" in s.lower()]
                         dv_note = (
-                            f"HTTP {resp.status}: cs_claims not found. "
+                            f"HTTP {resp.status}: crcce_claims not found. "
                             f"Claim entities: {claim_sets or 'none'} | "
                             f"Total entities: {len(all_sets)}"
                         )

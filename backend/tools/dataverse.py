@@ -57,6 +57,50 @@ class DataverseClient:
             "Prefer": "return=representation",
         }
 
+    @staticmethod
+    def _map_claim(d: dict) -> dict:
+        """Translate orchestrator keys → crcce_ Dataverse column names."""
+        return {
+            "crcce_claimnumber":   d.get("claim_id"),
+            "crcce_policyid":      d.get("policy_id"),
+            "crcce_claimtype":     d.get("claim_type"),
+            "crcce_status":        d.get("status"),
+            "crcce_claimantname":  d.get("claimant_name"),
+            "crcce_claimantemail": d.get("claimant_email"),
+            "crcce_claimamount":   d.get("claim_amount"),
+            "crcce_incidentdate":  d.get("incident_date"),
+            "crcce_channel":       d.get("channel"),
+            "crcce_priority":      d.get("priority"),
+            "crcce_fraudscore":    d.get("fraud_score"),
+            "crcce_fraudrisklevel":d.get("fraud_risk_level"),
+            "crcce_decision":      d.get("decision"),
+            "crcce_approvedamount":d.get("approved_amount"),
+            "crcce_finalpayout":   d.get("final_payout"),
+            "crcce_rationale":     d.get("rationale"),
+            "crcce_confidencescore":d.get("confidence_score"),
+            "crcce_stpflag":       d.get("stp_flag"),
+            "crcce_escalated":     d.get("escalated"),
+            "crcce_description":   d.get("description"),
+        }
+
+    @staticmethod
+    def _map_doc(d: dict) -> dict:
+        return {
+            "crcce_claimid":      d.get("claim_id"),
+            "crcce_documenttype": d.get("document_type", d.get("doc_type", "unknown")),
+            "crcce_bloburl":      d.get("blob_url", d.get("url", "")),
+            "crcce_extracteddata":str(d.get("extracted_data", d.get("data", ""))),
+        }
+
+    @staticmethod
+    def _map_audit(d: dict) -> dict:
+        return {
+            "crcce_claimid":   d.get("claim_id"),
+            "crcce_agentname": d.get("agent_name"),
+            "crcce_action":    d.get("action"),
+            "crcce_details":   d.get("details", ""),
+        }
+
     async def create_claim(self, claim_data: dict) -> str:
         if self.settings.demo_mode:
             claim_id = claim_data.get("claim_id", f"CLM-DEMO-{len(_demo_store)}")
@@ -65,11 +109,15 @@ class DataverseClient:
 
         try:
             token = await self._get_token()
-            url = f"{self._base_url}/api/data/v9.2/cs_claims"
+            url = f"{self._base_url}/api/data/v9.2/crcce_claims"
+            payload = {k: v for k, v in self._map_claim(claim_data).items() if v is not None}
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=claim_data, headers=self._headers(token)) as resp:
+                async with session.post(url, json=payload, headers=self._headers(token)) as resp:
                     result = await resp.json()
-                    return result.get("cs_claimid", claim_data.get("claim_id"))
+                    if resp.status not in (200, 201, 204):
+                        logger.error("dataverse_create_claim_api_error",
+                                     status=resp.status, body=str(result)[:200])
+                    return result.get("crcce_claimid", claim_data.get("claim_id", ""))
         except Exception as e:
             logger.error("dataverse_create_claim_failed", error=str(e))
             claim_id = claim_data.get("claim_id", "FALLBACK")
@@ -85,7 +133,7 @@ class DataverseClient:
 
         try:
             token = await self._get_token()
-            url = f"{self._base_url}/api/data/v9.2/cs_claims({claim_id})"
+            url = f"{self._base_url}/api/data/v9.2/crcce_claims({claim_id})"
             async with aiohttp.ClientSession() as session:
                 async with session.patch(url, json=updates, headers=self._headers(token)) as resp:
                     return resp.status in (200, 204)
@@ -102,8 +150,8 @@ class DataverseClient:
         try:
             token = await self._get_token()
             url = (
-                f"{self._base_url}/api/data/v9.2/cs_claims"
-                f"?$filter=cs_claimnumber eq '{claim_id}'"
+                f"{self._base_url}/api/data/v9.2/crcce_claims"
+                f"?$filter=crcce_claimnumber eq '{claim_id}'"
             )
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=self._headers(token)) as resp:
@@ -120,7 +168,7 @@ class DataverseClient:
 
         try:
             token = await self._get_token()
-            url = f"{self._base_url}/api/data/v9.2/cs_claims?$orderby=createdon desc&$top=100"
+            url = f"{self._base_url}/api/data/v9.2/crcce_claims?$orderby=createdon desc&$top=100"
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=self._headers(token)) as resp:
                     result = await resp.json()
@@ -137,11 +185,12 @@ class DataverseClient:
 
         try:
             token = await self._get_token()
-            url = f"{self._base_url}/api/data/v9.2/cs_claimdocuments"
+            url = f"{self._base_url}/api/data/v9.2/crcce_claimdocuments"
+            payload = {k: v for k, v in self._map_doc(doc_data).items() if v is not None}
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=doc_data, headers=self._headers(token)) as resp:
+                async with session.post(url, json=payload, headers=self._headers(token)) as resp:
                     result = await resp.json()
-                    return result.get("cs_claimdocumentid", doc_data.get("doc_id"))
+                    return result.get("crcce_claimdocumentid", doc_data.get("doc_id", ""))
         except Exception as e:
             logger.error("dataverse_create_doc_failed", error=str(e))
             doc_id = doc_data.get("doc_id", "FALLBACK")
@@ -155,9 +204,10 @@ class DataverseClient:
 
         try:
             token = await self._get_token()
-            url = f"{self._base_url}/api/data/v9.2/cs_claimauditlogs"
+            url = f"{self._base_url}/api/data/v9.2/crcce_claimauditlogs"
+            payload = {k: v for k, v in self._map_audit(log_data).items() if v is not None}
             async with aiohttp.ClientSession() as session:
-                await session.post(url, json=log_data, headers=self._headers(token))
+                await session.post(url, json=payload, headers=self._headers(token))
         except Exception as e:
             logger.error("dataverse_audit_log_failed", error=str(e))
             _demo_logs.append(log_data)
