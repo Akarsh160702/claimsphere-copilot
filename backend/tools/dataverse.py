@@ -24,6 +24,31 @@ _dv_errors: deque = deque(maxlen=10)
 # Map claim_id → Dataverse record GUID (for subsequent updates)
 _claim_dv_id: dict[str, str] = {}
 
+# Translate ClaimSphere domain values → the Choice option labels Copilot
+# generated for this environment. Keys are lowercased domain values.
+#   crcce_decision options: approved / denied / pending
+#   crcce_status   options: open / closed / pending / rejected
+#   crcce_claimtype options: accident / theft / fire / other
+#   crcce_priority options: low / medium / high  (1:1, no alias needed)
+_CHOICE_ALIASES: dict[str, dict[str, str]] = {
+    "crcce_decision": {
+        "approve": "approved", "approved": "approved",
+        "reject": "denied", "rejected": "denied", "deny": "denied", "denied": "denied",
+        "escalate": "pending", "escalated": "pending", "moreinfo": "pending",
+    },
+    "crcce_status": {
+        "received": "open", "processing": "open", "new": "open", "submitted": "open",
+        "pending information": "pending", "under human review": "pending",
+        "pending_info": "pending", "under_review": "pending",
+        "approved": "closed", "paid": "closed", "completed": "closed",
+        "rejected": "rejected", "denied": "rejected",
+        "escalated": "pending",
+    },
+    "crcce_claimtype": {
+        "health": "other", "motor": "accident", "property": "fire", "travel": "other",
+    },
+}
+
 
 class DataverseClient:
     # Cached primary-name logical column for crcce_claim (varies by environment)
@@ -78,6 +103,14 @@ class DataverseClient:
 
     async def _resolve_picklist(self, token: str, attr: str, value: str) -> Optional[int]:
         mapping = await self._get_picklist_map(token, attr)
+        if not mapping or not value:
+            return None
+        # 1. Explicit alias for this domain value
+        v = str(value).strip().lower()
+        target = _CHOICE_ALIASES.get(attr, {}).get(v)
+        if target and target in mapping:
+            return mapping[target]
+        # 2. Fall back to fuzzy match
         return self._match_option(mapping, value)
 
     async def _get_primary_name_attr(self, token: str) -> str:
