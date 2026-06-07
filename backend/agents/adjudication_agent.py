@@ -29,10 +29,10 @@ REJECT:
   - Document fraud confirmed
   - Duplicate claim confirmed
 
-ESCALATE (Human Review Required):
+ESCALATE (Human Review Required) — MANDATORY for any of:
+  - Claim amount > ₹10,00,000 (HIGH-VALUE: ALWAYS escalate, no exceptions)
   - Fraud score 40-70 (medium risk — needs human judgment)
   - Confidence < 75% (ambiguous case)
-  - Claim amount > ₹10,00,000 (high-value)
   - Missing critical documents but partial information available
   - Complex multi-condition case
   - Borderline exclusion case
@@ -279,7 +279,17 @@ class AdjudicationAgent(BaseAgent):
         deductible = validation.deductible_amount if validation else 0
 
         # Determine decision based on all signals
-        if validation and not validation.is_valid:
+        if context.submission.claim_amount > self.settings.high_value_escalation_amount:
+            decision = Decision.ESCALATE
+            payout = 0.0
+            rationale = (
+                f"Claim amount ₹{claim_amount:,.0f} exceeds the automatic adjudication threshold "
+                f"of ₹{self.settings.high_value_escalation_amount:,.0f}. "
+                "High-value claims require senior adjudicator approval per company policy."
+            )
+            escalation_reason = "High-value claim requires senior adjudicator review"
+            rejection_reason = None
+        elif validation and not validation.is_valid:
             decision = Decision.REJECT
             payout = 0.0
             rationale = (
