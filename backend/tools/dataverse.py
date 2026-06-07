@@ -28,12 +28,57 @@ _claim_dv_id: dict[str, str] = {}
 class DataverseClient:
     # Cached primary-name logical column for crcce_claim (varies by environment)
     _primary_name_attr: Optional[str] = None
+    # Cached Picklist (Choice) option maps: attr -> {label_lower: int_value}
+    _picklist_cache: dict[str, dict] = {}
 
     def __init__(self):
         self.settings = get_settings()
         self._base_url = self.settings.dataverse_url.rstrip("/")
         self._token: Optional[str] = None
         self._token_expiry: Optional[datetime] = None
+
+    async def _get_picklist_map(self, token: str, attr: str) -> dict:
+        """Fetch (and cache) the {label_lower: option_value} map for a Choice column."""
+        if attr in DataverseClient._picklist_cache:
+            return DataverseClient._picklist_cache[attr]
+        mapping: dict = {}
+        try:
+            url = (
+                f"{self._base_url}/api/data/v9.2/"
+                f"EntityDefinitions(LogicalName='crcce_claim')/Attributes(LogicalName='{attr}')"
+                f"/Microsoft.Dynamics.CRM.PicklistAttributeMetadata"
+                f"?$select=LogicalName&$expand=OptionSet($select=Options)"
+            )
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=self._headers(token)) as resp:
+                    body = await resp.json()
+                    options = ((body.get("OptionSet") or {}).get("Options") or [])
+                    for o in options:
+                        label = ((o.get("Label") or {}).get("UserLocalizedLabel") or {}).get("Label", "")
+                        val = o.get("Value")
+                        if label and val is not None:
+                            mapping[label.strip().lower()] = val
+            DataverseClient._picklist_cache[attr] = mapping
+        except Exception as e:
+            logger.warning("picklist_map_failed", attr=attr, error=str(e))
+        return mapping
+
+    @staticmethod
+    def _match_option(mapping: dict, value: str) -> Optional[int]:
+        """Fuzzy-match a string value to a Choice option's integer value."""
+        if not value or not mapping:
+            return None
+        v = str(value).strip().lower().replace("_", " ")
+        if v in mapping:
+            return mapping[v]
+        for label, val in mapping.items():
+            if label.startswith(v) or v.startswith(label) or v in label or label in v:
+                return val
+        return None
+
+    async def _resolve_picklist(self, token: str, attr: str, value: str) -> Optional[int]:
+        mapping = await self._get_picklist_map(token, attr)
+        return self._match_option(mapping, value)
 
     async def _get_primary_name_attr(self, token: str) -> str:
         """Discover (and cache) the primary name column of crcce_claim."""
@@ -159,6 +204,17 @@ class DataverseClient:
             primary = await self._get_primary_name_attr(token)
             if primary not in payload:
                 payload[primary] = claim_data.get("claim_id")
+            # Resolve Choice (Picklist) columns to their integer option values
+            for attr, raw in (
+                ("crcce_decision",  claim_data.get("decision")),
+                ("crcce_status",    claim_data.get("status")),
+                ("crcce_claimtype", claim_data.get("claim_type")),
+                ("crcce_priority",  claim_data.get("priority")),
+            ):
+                if raw:
+                    opt = await self._resolve_picklist(token, attr, raw)
+                    if opt is not None:
+                        payload[attr] = opt
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, json=payload, headers=self._headers(token)) as resp:
                     if resp.status not in (200, 201, 204):
@@ -217,15 +273,28 @@ class DataverseClient:
                 logger.warning("dataverse_update_no_guid", claim_id=claim_id)
                 return False
             mapped = {}
-            if "decision" in updates:
+            if updates.get("decision"):
+                opt = await self._resolve_picklist(token, "crcce_decision", updates["decision"])
+                if opt is not None:
+                    mapped["crcce_decision"] = opt        # real Choice column
                 mapped["crcce_rationale"] = f"Decision: {updates['decision']}"[:100]
-            if "status" in updates:
-                mapped["crcce_description"] = f"[{updates.get('decision','')}] Status: {updates['status']}"[:100]
+            if updates.get("status"):
+                opt = await self._resolve_picklist(token, "crcce_status", updates["status"])
+                if opt is not None:
+                    mapped["crcce_status"] = opt           # real Choice column
             if not mapped:
                 return True
             url = f"{self._base_url}/api/data/v9.2/crcce_claims({dv_id})"
             async with aiohttp.ClientSession() as session:
                 async with session.patch(url, json=mapped, headers=self._headers(token)) as resp:
+                    if resp.status not in (200, 204):
+                        body = await resp.text()
+                        logger.error("dataverse_update_api_error", status=resp.status, body=body[:300])
+                        _dv_errors.append({
+                            "op": "update", "status": resp.status,
+                            "payload": mapped, "error": body[:400],
+                            "ts": datetime.utcnow().isoformat(),
+                        })
                     return resp.status in (200, 204)
         except Exception as e:
             logger.error("dataverse_update_claim_failed", error=str(e))

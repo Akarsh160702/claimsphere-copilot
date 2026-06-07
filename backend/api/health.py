@@ -158,6 +158,21 @@ async def dataverse_claim_test():
         return {"error": str(e), "trace": traceback.format_exc()}
 
 
+@router.get("/health/picklists")
+async def picklist_options():
+    """Dump the option-set (label→value) maps for the Choice columns on crcce_claim."""
+    from backend.tools.dataverse import DataverseClient
+    client = DataverseClient()
+    try:
+        token = await client._get_token()
+        out = {}
+        for attr in ("crcce_decision", "crcce_status", "crcce_claimtype", "crcce_priority"):
+            out[attr] = await client._get_picklist_map(token, attr)
+        return out
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @router.get("/health/persist-errors")
 async def persist_errors():
     """Return the last 10 persist errors (orchestrator + Dataverse write failures)."""
