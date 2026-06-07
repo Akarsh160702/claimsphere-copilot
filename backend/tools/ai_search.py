@@ -17,7 +17,7 @@ DEMO_POLICIES = {
         "premium": 45000.0,
         "deductible": 10000.0,
         "start_date": "2024-01-01",
-        "end_date": "2027-12-31",
+        "end_date": "2030-12-31",
         "waiting_period_days": 30,
         "coverage_details": {
             "hospitalization": True,
@@ -54,7 +54,7 @@ DEMO_POLICIES = {
         "premium": 22000.0,
         "deductible": 2000.0,
         "start_date": "2024-03-01",
-        "end_date": "2027-02-28",
+        "end_date": "2030-02-28",
         "waiting_period_days": 0,
         "coverage_details": {
             "own_damage": True,
@@ -85,7 +85,7 @@ DEMO_POLICIES = {
         "premium": 8500.0,
         "deductible": 10000.0,
         "start_date": "2024-02-01",
-        "end_date": "2027-01-31",
+        "end_date": "2030-01-31",
         "waiting_period_days": 0,
         "coverage_details": {
             "fire": True,

@@ -22,7 +22,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import structlog
 
-from backend.api import claims, documents, health, support, mock, webhooks
+from backend.api import claims, documents, health, support, mock, webhooks, admin
 from backend.config import get_settings
 
 logger = structlog.get_logger()
@@ -50,15 +50,17 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("policy_seeding_failed", error=str(e))
 
-    # Pre-populate the in-memory claims store so the dashboard shows live
-    # data immediately on a cold start (no LLM calls — instant).
-    try:
-        from backend.api.claims import _processing_contexts
-        from backend.data_seeder import seed_demo_claims
-        if not _processing_contexts:  # Only seed if store is empty
-            seed_demo_claims(_processing_contexts)
-    except Exception as e:
-        logger.warning("demo_claims_seeding_failed", error=str(e))
+    # Pre-populate the in-memory claims store with sample claims ONLY when
+    # explicitly enabled (SEED_DEMO_CLAIMS=true). Disabled by default so real
+    # submitted claims aren't polluted by fake demo rows reappearing on restart.
+    if settings.seed_demo_claims:
+        try:
+            from backend.api.claims import _processing_contexts
+            from backend.data_seeder import seed_demo_claims
+            if not _processing_contexts:  # Only seed if store is empty
+                seed_demo_claims(_processing_contexts)
+        except Exception as e:
+            logger.warning("demo_claims_seeding_failed", error=str(e))
 
     yield
     logger.info("claimsphere_shutting_down")
@@ -91,6 +93,7 @@ app.include_router(documents.router)
 app.include_router(support.router)
 app.include_router(mock.router)
 app.include_router(webhooks.router)
+app.include_router(admin.router)
 
 # MCP (Model Context Protocol) server — exposes ClaimSphere tools to any MCP
 # client: Copilot Studio, Claude Desktop, VS Code Copilot Agent.

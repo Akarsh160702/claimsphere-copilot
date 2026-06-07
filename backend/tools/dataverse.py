@@ -409,6 +409,49 @@ class DataverseClient:
             logger.error("dataverse_get_all_claims_failed", error=str(e))
             return list(_demo_store.values())
 
+    async def delete_all_claims(self) -> dict:
+        """Delete every row in the crcce_claims table. Returns a summary dict.
+
+        Used by the admin reset endpoint to clear all demo/test data so the
+        table starts clean before a fresh demo run.
+        """
+        if self.settings.demo_mode:
+            n = len(_demo_store)
+            _demo_store.clear()
+            _claim_dv_id.clear()
+            return {"deleted": n, "mode": "demo"}
+
+        deleted = 0
+        errors = []
+        try:
+            token = await self._get_token()
+            async with aiohttp.ClientSession() as session:
+                # Page through all rows collecting their GUIDs
+                url = f"{self._base_url}/api/data/v9.2/crcce_claims?$select=crcce_claimid&$top=500"
+                guids: list[str] = []
+                while url:
+                    async with session.get(url, headers=self._headers(token)) as resp:
+                        body = await resp.json()
+                        guids.extend(
+                            row["crcce_claimid"]
+                            for row in body.get("value", [])
+                            if row.get("crcce_claimid")
+                        )
+                        url = body.get("@odata.nextLink")
+                # Delete each row
+                for gid in guids:
+                    del_url = f"{self._base_url}/api/data/v9.2/crcce_claims({gid})"
+                    async with session.delete(del_url, headers=self._headers(token)) as dresp:
+                        if dresp.status in (200, 204):
+                            deleted += 1
+                        else:
+                            errors.append(f"{gid}: HTTP {dresp.status}")
+            _claim_dv_id.clear()
+            return {"deleted": deleted, "found": len(guids), "errors": errors[:5], "mode": "live"}
+        except Exception as e:
+            logger.error("dataverse_delete_all_failed", error=str(e))
+            return {"deleted": deleted, "error": str(e), "mode": "live"}
+
     async def create_document_record(self, doc_data: dict) -> str:
         if self.settings.demo_mode:
             doc_id = doc_data.get("doc_id", f"DOC-{len(_demo_docs)}")

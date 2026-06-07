@@ -132,11 +132,15 @@ class ValidationAgent(BaseAgent):
     async def _demo_validate(self, context: ClaimContext, policy_data: dict) -> ClaimContext:
         await asyncio.sleep(0.4)
 
-        # Check policy active
-        today = datetime.now().strftime("%Y-%m-%d")
+        # Check policy active ON THE INCIDENT DATE (coverage must be valid when
+        # the incident occurred, not merely today). Falls back to today if the
+        # incident date is missing/malformed.
+        incident = (context.submission.incident_date or "")[:10]
+        if len(incident) != 10:
+            incident = datetime.now().strftime("%Y-%m-%d")
         start = policy_data.get("start_date", "2000-01-01")
         end = policy_data.get("end_date", "2000-01-01")
-        policy_active = start <= today <= end
+        policy_active = start <= incident <= end
 
         sum_insured = float(policy_data.get("sum_insured", 0))
         claim_amount = context.submission.claim_amount

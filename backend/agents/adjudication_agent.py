@@ -127,14 +127,68 @@ class AdjudicationAgent(BaseAgent):
             return await self._demo_adjudicate(context)
 
     def _pre_adjudication_check(self, context: ClaimContext) -> AdjudicationResult | None:
+        """Deterministic rule-based decisions made BEFORE the expensive GPT-4o call.
+
+        These guarantee predictable, demo-stable outcomes for the canonical paths
+        and are evaluated in strict priority order:
+          1. High-value (> ₹10L)         → ESCALATE (human-in-the-loop via Teams)
+          2. High fraud (score >= 60)    → ESCALATE
+          3. Policy inactive             → REJECT
+          4. Exclusion clause triggered  → REJECT
+          5. Low-value, valid, low fraud → APPROVE
+        Anything ambiguous (e.g. a valid ₹5L–₹10L claim) returns None and falls
+        through to the GPT-4o adjudicator for a nuanced decision.
+        """
         validation = context.validation_result
         fraud = context.fraud_result
+        amount = context.submission.claim_amount
 
-        # Definitive reject: policy not active
+        # 1. HIGH-VALUE → ESCALATE  (checked FIRST so it ALWAYS wins — this is the
+        #    human-review demo path and must never be auto-approved or auto-rejected
+        #    by a flaky LLM validation result).
+        if amount > self.settings.high_value_escalation_amount:
+            self.log("pre_adjudication_escalate_high_value", claim_id=context.claim_id, amount=amount)
+            return AdjudicationResult(
+                decision=Decision.ESCALATE,
+                claim_amount=amount,
+                approved_amount=0.0,
+                deductible_applied=0.0,
+                final_payout=0.0,
+                rationale=(
+                    f"Claim amount ₹{amount:,.0f} exceeds the automatic adjudication threshold "
+                    f"of ₹{self.settings.high_value_escalation_amount:,.0f}. High-value claims require "
+                    "senior adjudicator approval via human review per company policy."
+                ),
+                confidence_score=0.95,
+                supporting_evidence=[f"Claim amount ₹{amount:,.0f} exceeds ₹{self.settings.high_value_escalation_amount:,.0f} threshold"],
+                escalation_reason="High-value claim requires senior adjudicator review",
+            )
+
+        # 2. HIGH FRAUD → ESCALATE
+        if fraud and fraud.fraud_score >= self.settings.fraud_escalation_threshold:
+            self.log("pre_adjudication_escalate_fraud", claim_id=context.claim_id, score=fraud.fraud_score)
+            return AdjudicationResult(
+                decision=Decision.ESCALATE,
+                claim_amount=amount,
+                approved_amount=0.0,
+                deductible_applied=0.0,
+                final_payout=0.0,
+                rationale=(
+                    f"Claim escalated for mandatory human review due to high fraud risk score of "
+                    f"{fraud.fraud_score}/100. Specific fraud indicators: {', '.join(fraud.flags[:3]) or 'multiple anomalies'}. "
+                    "A senior adjudicator must review this claim before any decision is made."
+                ),
+                confidence_score=0.9,
+                supporting_evidence=fraud.flags or ["Elevated fraud risk score"],
+                escalation_reason=f"High fraud risk: score {fraud.fraud_score}/100",
+            )
+
+        # 3. POLICY INACTIVE → REJECT
         if validation and not validation.policy_active:
+            self.log("pre_adjudication_reject_inactive", claim_id=context.claim_id)
             return AdjudicationResult(
                 decision=Decision.REJECT,
-                claim_amount=context.submission.claim_amount,
+                claim_amount=amount,
                 approved_amount=0.0,
                 deductible_applied=0.0,
                 final_payout=0.0,
@@ -148,42 +202,52 @@ class AdjudicationAgent(BaseAgent):
                 rejection_reason="Policy expired or not yet active",
             )
 
-        # Definitive escalate: very high fraud score
-        if fraud and fraud.fraud_score >= self.settings.fraud_escalation_threshold:
+        # 4. EXCLUSION CLAUSE → REJECT
+        if validation and validation.exclusions_hit:
+            self.log("pre_adjudication_reject_exclusion", claim_id=context.claim_id)
             return AdjudicationResult(
-                decision=Decision.ESCALATE,
-                claim_amount=context.submission.claim_amount,
+                decision=Decision.REJECT,
+                claim_amount=amount,
                 approved_amount=0.0,
                 deductible_applied=0.0,
                 final_payout=0.0,
                 rationale=(
-                    f"Claim escalated for mandatory human review due to high fraud risk score of "
-                    f"{fraud.fraud_score}/100. Specific fraud indicators: {', '.join(fraud.flags[:3])}. "
-                    "A senior adjudicator must review this claim before any decision is made."
+                    f"Claim rejected: a policy exclusion applies — {', '.join(validation.exclusions_hit)}. "
+                    "The submitted claim falls under terms explicitly excluded from coverage. "
+                    "Customer may appeal within 30 days."
                 ),
-                confidence_score=0.9,
-                supporting_evidence=fraud.flags,
-                escalation_reason=f"High fraud risk: score {fraud.fraud_score}/100",
+                confidence_score=0.97,
+                supporting_evidence=[f"Exclusion triggered: {e}" for e in validation.exclusions_hit],
+                rejection_reason=f"Exclusion: {', '.join(validation.exclusions_hit)}",
             )
 
-        # Definitive escalate: very high value
-        if context.submission.claim_amount > self.settings.high_value_escalation_amount:
+        # 5. LOW-VALUE, VALID, LOW FRAUD → APPROVE (straight-through processing)
+        if (
+            validation and validation.is_valid
+            and amount <= self.settings.auto_approve_max_amount
+            and (not fraud or fraud.fraud_score < 40)
+        ):
+            coverage = validation.coverage_amount or amount
+            deductible = validation.deductible_amount or 0.0
+            payout = max(min(amount, coverage) - deductible, 0.0)
+            self.log("pre_adjudication_approve_stp", claim_id=context.claim_id, payout=payout)
             return AdjudicationResult(
-                decision=Decision.ESCALATE,
-                claim_amount=context.submission.claim_amount,
-                approved_amount=0.0,
-                deductible_applied=0.0,
-                final_payout=0.0,
+                decision=Decision.APPROVE,
+                claim_amount=amount,
+                approved_amount=coverage,
+                deductible_applied=deductible,
+                final_payout=payout,
                 rationale=(
-                    f"Claim amount ₹{context.submission.claim_amount:,.0f} exceeds the automatic "
-                    f"adjudication threshold of ₹{self.settings.high_value_escalation_amount:,.0f}. "
-                    "High-value claims require senior adjudicator approval per company policy."
+                    f"Claim auto-approved via straight-through processing. Policy is active, claim type is "
+                    f"covered, fraud score is low ({fraud.fraud_score if fraud else 0}/100), and the amount "
+                    f"₹{amount:,.0f} is within the auto-approval limit of ₹{self.settings.auto_approve_max_amount:,.0f}. "
+                    f"Coverage ₹{coverage:,.0f} less deductible ₹{deductible:,.0f} = final payout ₹{payout:,.0f}."
                 ),
-                confidence_score=0.95,
-                supporting_evidence=[f"Claim amount ₹{context.submission.claim_amount:,.0f} > threshold"],
-                escalation_reason="High-value claim requires senior adjudicator review",
+                confidence_score=0.94,
+                supporting_evidence=["Policy active", "Within auto-approval limit", "Fraud LOW"],
             )
 
+        # Ambiguous (valid ₹5L–₹10L claim) → defer to GPT-4o
         return None
 
     async def _llm_adjudicate(self, context: ClaimContext) -> ClaimContext:

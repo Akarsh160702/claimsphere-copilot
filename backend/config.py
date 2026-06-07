@@ -6,6 +6,9 @@ from pydantic import Field
 class Settings(BaseSettings):
     # Demo mode — uses mock data, no Azure credentials needed
     demo_mode: bool = Field(default=False, alias="DEMO_MODE")
+    # Pre-seed 5 sample claims into the in-memory store on startup. Off by
+    # default so real submitted claims aren't mixed with fake demo rows.
+    seed_demo_claims: bool = Field(default=False, alias="SEED_DEMO_CLAIMS")
 
     # Azure OpenAI
     azure_openai_endpoint: str = Field(default="", alias="AZURE_OPENAI_ENDPOINT")
