@@ -164,24 +164,30 @@ async def teams_decision_redirect(
     if decision not in ("Approve", "Reject", "MoreInfo"):
         return HTMLResponse("<h2>Invalid decision value.</h2>", status_code=400)
 
-    settings = get_settings()
-    api_base = settings.api_base_url.rstrip("/")
-    frontend_base = settings.frontend_base_url.rstrip("/")
-    claim_detail_url = f"{frontend_base}/claims/{claim_id}"
+    api_base = get_settings().api_base_url.rstrip("/")
+    label = {"Approve": "Approved", "Reject": "Rejected", "MoreInfo": "Sent for More Info"}.get(decision, decision)
+    color = {"Approve": "#107C10", "Reject": "#A4262C", "MoreInfo": "#0078D4"}.get(decision, "#000")
 
     return HTMLResponse(f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>ClaimSphere — Processing…</title>
-<style>body{{font-family:Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f3f2f1;color:#323130;text-align:center}}</style>
-</head>
-<body>
-<div>
-  <p style="font-size:16px;margin:0 0 8px">Recording decision — redirecting to ClaimSphere…</p>
-  <p style="font-size:13px;color:#605e5c">If not redirected in 3 seconds, <a href="{claim_detail_url}">click here</a>.</p>
+<html><head><meta charset="utf-8"><title>ClaimSphere — Decision</title>
+<style>
+body{{font-family:Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;
+     height:100vh;margin:0;background:#f3f2f1}}
+.card{{background:#fff;border-radius:8px;padding:40px 56px;
+       box-shadow:0 2px 8px rgba(0,0,0,.12);text-align:center;max-width:480px}}
+#status{{font-size:22px;font-weight:700;margin:0 0 10px;color:#323130}}
+#sub{{font-size:14px;color:#605e5c;margin:0}}
+</style></head>
+<body><div class="card">
+  <div id="status">Processing…</div>
+  <div id="sub">Claim <strong>{claim_id}</strong></div>
 </div>
 <script>
 (async function() {{
+  const st = document.getElementById('status');
+  const sub = document.getElementById('sub');
   try {{
-    await fetch('{api_base}/webhooks/teams-decision', {{
+    const r = await fetch('{api_base}/webhooks/teams-decision', {{
       method: 'POST',
       headers: {{'Content-Type': 'application/json'}},
       body: JSON.stringify({{
@@ -191,8 +197,21 @@ async def teams_decision_redirect(
         notes: {notes!r}
       }})
     }});
-  }} catch (_) {{}}
-  window.location.replace('{claim_detail_url}');
+    const data = await r.json();
+    if (data.status === 'already_decided') {{
+      st.textContent = 'Already Decided';
+      st.style.color = '#605e5c';
+      sub.textContent = 'A decision was already recorded for claim {claim_id}.';
+    }} else {{
+      st.textContent = '{label} ✓';
+      st.style.color = '{color}';
+      sub.innerHTML = 'Claim <strong>{claim_id}</strong> has been {label.lower()}. You can close this tab.';
+    }}
+  }} catch (e) {{
+    st.textContent = 'Error';
+    st.style.color = '#A4262C';
+    sub.textContent = 'Could not reach ClaimSphere. Please try again or open the app directly.';
+  }}
 }})();
 </script>
 </body></html>""")
