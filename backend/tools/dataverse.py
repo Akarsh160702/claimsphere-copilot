@@ -21,6 +21,9 @@ _demo_logs: list[dict] = []
 # Last 10 Dataverse write errors — exposed via /health/persist-errors
 _dv_errors: deque = deque(maxlen=10)
 
+# Map claim_id → Dataverse record GUID (for subsequent updates)
+_claim_dv_id: dict[str, str] = {}
+
 
 class DataverseClient:
     # Cached primary-name logical column for crcce_claim (varies by environment)
@@ -170,7 +173,10 @@ class DataverseClient:
                         })
                         raise RuntimeError(f"Dataverse {resp.status}: {body[:200]}")
                     result = await resp.json() if resp.status != 204 else {}
-                    return result.get("crcce_claimid", claim_data.get("claim_id", ""))
+                    dv_id = result.get("crcce_claimid", "")
+                    if dv_id and claim_data.get("claim_id"):
+                        _claim_dv_id[claim_data["claim_id"]] = dv_id
+                    return dv_id or claim_data.get("claim_id", "")
         except Exception as e:
             logger.error("dataverse_create_claim_failed", error=str(e))
             claim_id = claim_data.get("claim_id", "FALLBACK")
@@ -185,10 +191,22 @@ class DataverseClient:
             return True
 
         try:
+            dv_id = _claim_dv_id.get(claim_id)
+            if not dv_id:
+                logger.warning("dataverse_update_no_guid", claim_id=claim_id)
+                return False
             token = await self._get_token()
-            url = f"{self._base_url}/api/data/v9.2/crcce_claims({claim_id})"
+            # Map update keys to crcce_ column names (only safe string/number fields)
+            mapped = {}
+            if "decision" in updates:
+                mapped["crcce_rationale"] = str(updates.get("decision", ""))[:100]
+            if "status" in updates:
+                mapped["crcce_description"] = f"Status: {updates['status']}"[:100]
+            if not mapped:
+                return True
+            url = f"{self._base_url}/api/data/v9.2/crcce_claims({dv_id})"
             async with aiohttp.ClientSession() as session:
-                async with session.patch(url, json=updates, headers=self._headers(token)) as resp:
+                async with session.patch(url, json=mapped, headers=self._headers(token)) as resp:
                     return resp.status in (200, 204)
         except Exception as e:
             logger.error("dataverse_update_claim_failed", error=str(e))

@@ -83,6 +83,17 @@ async def teams_decision(payload: TeamsDecisionPayload, request: Request):
         },
     )
 
+    # Persist human decision back to Dataverse
+    try:
+        from backend.tools.dataverse import DataverseClient
+        dv = DataverseClient()
+        await dv.update_claim(claim_id, {
+            "decision": decision_str,
+            "status": ctx.status.value,
+        })
+    except Exception as e:
+        logger.warning("teams_decision_dataverse_update_failed", error=str(e))
+
     logger.info(
         "teams_decision_applied",
         claim_id=claim_id,
