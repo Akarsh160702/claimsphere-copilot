@@ -77,6 +77,8 @@ export function ClaimDetail() {
   const missing = claim.missing_info_result;
   const needsReview = claim.status === "Under Human Review" || claim.status === "Escalated";
   const decisionColor = statusColor(adj?.decision ?? claim.status ?? "");
+  const isRuleBased = claim.audit_trail?.some((a) => a.action === "PRE_ADJUDICATION_DECISION");
+  const modelLabel = isRuleBased ? "rule-based" : "gpt-4o";
 
   return (
     <AppLayout
@@ -242,7 +244,7 @@ export function ClaimDetail() {
                   Confidence: {Math.round(adj.confidence_score * 100)}%
                 </div>
                 <div style={{ fontSize: 11, color: palette.textMuted, marginLeft: "auto" }}>
-                  model: gpt-4o
+                  model: {modelLabel}
                 </div>
               </div>
               <p style={{ margin: "0 0 12px", fontSize: 13, color: palette.textSecondary, lineHeight: 1.65 }}>

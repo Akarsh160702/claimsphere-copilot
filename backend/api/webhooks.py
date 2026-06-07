@@ -78,13 +78,34 @@ async def teams_decision(payload: TeamsDecisionPayload, request: Request):
 
     ctx = _processing_contexts[claim_id]
 
+    # Idempotency: first Teams decision wins — prevents double-click / PA retry from
+    # flipping the result (e.g. Approve at t+0 then Reject at t+1).
+    if any(a.action == "TEAMS_HUMAN_DECISION" for a in ctx.audit_trail):
+        logger.info(
+            "teams_decision_already_recorded",
+            claim_id=claim_id,
+            incoming_decision=decision_str,
+        )
+        return {
+            "status": "already_decided",
+            "claim_id": claim_id,
+            "message": f"Teams decision already recorded for {claim_id}. First decision stands.",
+        }
+
     # Apply decision to in-memory context
     if ctx.adjudication_result:
         try:
             ctx.adjudication_result.decision = Decision(decision_str)
         except ValueError:
             pass
-        rationale_suffix = f"\n\nTeams Decision by {payload.reviewer}: {payload.notes or 'Approved via Teams card'}"
+        decision_label = {
+            "Approve": "Approved",
+            "Reject": "Rejected",
+            "MoreInfo": "More Info Requested",
+        }.get(decision_str, decision_str)
+        rationale_suffix = f"\n\nTeams Decision by {payload.reviewer}: {decision_label} via Teams card"
+        if payload.notes:
+            rationale_suffix += f" — {payload.notes}"
         ctx.adjudication_result.rationale = (ctx.adjudication_result.rationale or "") + rationale_suffix
         ctx.adjudication_result.confidence_score = 1.0
 
