@@ -116,7 +116,7 @@ class DataverseClient:
             "crcce_approvedamount":d.get("approved_amount"),
             "crcce_fraudscore":    float(d["fraud_score"]) if d.get("fraud_score") is not None else None,
             "crcce_incidentdate":  incident or None,
-            "crcce_rationale":     d.get("rationale"),
+            "crcce_rationale":     (d.get("rationale") or "")[:100],
             "crcce_description":   (
                 f"[{claim_type}] [{priority}] Status: {status} | "
                 f"Decision: {decision} | Fraud Risk: {fraud_risk} | "
