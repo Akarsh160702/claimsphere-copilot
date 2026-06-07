@@ -6,8 +6,13 @@ Pipeline:
   → MissingInfoAgent → AdjudicationAgent → Notifications
 """
 import asyncio
+import traceback
 from datetime import datetime
+from collections import deque
 import structlog
+
+# Last 10 persist errors — readable via GET /health/persist-errors
+_persist_errors: deque = deque(maxlen=10)
 
 from backend.models.claim import ClaimContext, ClaimSubmission, ClaimStatus
 from backend.agents.router_agent import RouterAgent
@@ -171,7 +176,14 @@ class ClaimOrchestrator:
                     "details": str(audit.details),
                 })
         except Exception as e:
-            logger.error("context_persist_failed", error=str(e))
+            tb = traceback.format_exc()
+            logger.error("context_persist_failed", error=str(e), traceback=tb)
+            _persist_errors.append({
+                "claim_id": getattr(context, "claim_id", "unknown"),
+                "error": str(e),
+                "traceback": tb,
+                "ts": datetime.utcnow().isoformat(),
+            })
 
     async def _send_notifications(self, context: ClaimContext):
         try:

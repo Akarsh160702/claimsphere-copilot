@@ -158,6 +158,13 @@ async def dataverse_claim_test():
         return {"error": str(e), "trace": traceback.format_exc()}
 
 
+@router.get("/health/persist-errors")
+async def persist_errors():
+    """Return the last 10 _persist_context errors with full tracebacks."""
+    from backend.orchestrator import _persist_errors
+    return {"errors": list(_persist_errors)}
+
+
 @router.get("/health/dataverse-write")
 async def dataverse_write_test():
     """Return actual column names for crcce_claim entity from Dataverse metadata."""
