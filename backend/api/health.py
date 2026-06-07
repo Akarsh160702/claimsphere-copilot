@@ -135,26 +135,40 @@ async def dataverse_write_test():
         client = DataverseClient()
         token = await client._get_token()
         base = settings.dataverse_url.rstrip("/")
-        test_record = {
-            "crcce_name":          "CLM-TEST-WRITE",
-            "crcce_policyid":      "POL-TEST-001",
-            "crcce_claimantname":  "Health Check Test",
-            "crcce_claimantemail": "test@claimsphere.ai",
-            "crcce_claimamount":   500000.0,
-            "crcce_approvedamount":400000.0,
-            "crcce_fraudscore":    15.0,
-            "crcce_incidentdate":  "2026-06-07T00:00:00Z",
-            "crcce_rationale":     "Automated write test",
-            "crcce_description":   "[Health] [HIGH] Status: APPROVED | Decision: APPROVED | Fraud Risk: LOW | Write test",
-        }
         async with aiohttp.ClientSession() as session:
+            # 1. Discover the primary name attribute (the claim-number column)
+            async with session.get(
+                f"{base}/api/data/v9.2/EntityDefinitions(LogicalName='crcce_claim')"
+                "?$select=PrimaryNameAttribute",
+                headers=client._headers(token),
+            ) as meta_resp:
+                meta = await meta_resp.json()
+                primary = meta.get("PrimaryNameAttribute", "crcce_name")
+
+            # 2. Build a record using the discovered primary column
+            test_record = {
+                primary:               "CLM-TEST-WRITE",
+                "crcce_policyid":      "POL-TEST-001",
+                "crcce_claimantname":  "Health Check Test",
+                "crcce_claimantemail": "test@claimsphere.ai",
+                "crcce_claimamount":   500000.0,
+                "crcce_approvedamount":400000.0,
+                "crcce_fraudscore":    15.0,
+                "crcce_incidentdate":  "2026-06-07T00:00:00Z",
+                "crcce_rationale":     "Automated write test",
+                "crcce_description":   "[Health] Status: APPROVED | Write test",
+            }
             async with session.post(
                 f"{base}/api/data/v9.2/crcce_claims",
                 json=test_record,
                 headers=client._headers(token),
             ) as resp:
                 body = await resp.text()
-                return {"status": resp.status, "body": body[:300]}
+                return {
+                    "primary_name_attribute": primary,
+                    "status": resp.status,
+                    "body": body[:600],
+                }
     except Exception as e:
         return {"error": str(e)}
 

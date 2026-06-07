@@ -19,11 +19,33 @@ _demo_logs: list[dict] = []
 
 
 class DataverseClient:
+    # Cached primary-name logical column for crcce_claim (varies by environment)
+    _primary_name_attr: Optional[str] = None
+
     def __init__(self):
         self.settings = get_settings()
         self._base_url = self.settings.dataverse_url.rstrip("/")
         self._token: Optional[str] = None
         self._token_expiry: Optional[datetime] = None
+
+    async def _get_primary_name_attr(self, token: str) -> str:
+        """Discover (and cache) the primary name column of crcce_claim."""
+        if DataverseClient._primary_name_attr:
+            return DataverseClient._primary_name_attr
+        try:
+            url = (
+                f"{self._base_url}/api/data/v9.2/"
+                "EntityDefinitions(LogicalName='crcce_claim')?$select=PrimaryNameAttribute"
+            )
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=self._headers(token)) as resp:
+                    meta = await resp.json()
+                    attr = meta.get("PrimaryNameAttribute", "crcce_name")
+                    DataverseClient._primary_name_attr = attr
+                    return attr
+        except Exception as e:
+            logger.warning("dataverse_primary_name_lookup_failed", error=str(e))
+            return "crcce_name"
 
     async def _get_token(self) -> str:
         now = datetime.utcnow()
@@ -80,8 +102,9 @@ class DataverseClient:
         priority   = d.get("priority", "")
         fraud_risk = d.get("fraud_risk_level", "")
 
+        # Primary name column (claim number) is added separately in create_claim,
+        # since its logical name varies by environment.
         return {
-            "crcce_name":          d.get("claim_id"),          # primary name column
             "crcce_policyid":      d.get("policy_id"),
             "crcce_claimantname":  d.get("claimant_name"),
             "crcce_claimantemail": d.get("claimant_email"),
@@ -125,12 +148,17 @@ class DataverseClient:
             token = await self._get_token()
             url = f"{self._base_url}/api/data/v9.2/crcce_claims"
             payload = {k: v for k, v in self._map_claim(claim_data).items() if v is not None}
+            # Inject the claim number under the environment's primary-name column
+            primary = await self._get_primary_name_attr(token)
+            payload[primary] = claim_data.get("claim_id")
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, json=payload, headers=self._headers(token)) as resp:
-                    result = await resp.json()
                     if resp.status not in (200, 201, 204):
+                        body = await resp.text()
                         logger.error("dataverse_create_claim_api_error",
-                                     status=resp.status, body=str(result)[:200])
+                                     status=resp.status, body=body[:300])
+                        raise RuntimeError(f"Dataverse {resp.status}: {body[:200]}")
+                    result = await resp.json() if resp.status != 204 else {}
                     return result.get("crcce_claimid", claim_data.get("claim_id", ""))
         except Exception as e:
             logger.error("dataverse_create_claim_failed", error=str(e))
