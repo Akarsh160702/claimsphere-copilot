@@ -151,29 +151,55 @@ async def teams_decision_redirect(
     notes: str = Query(""),
 ):
     """
-    Called when an adjudicator clicks Approve/Reject on the Teams Adaptive Card.
-    Action.OpenUrl opens this URL in a browser tab — we process the decision
-    and return an HTML confirmation page.
+    Called when an adjudicator opens the Approve/Reject link from a Teams card.
+
+    IMPORTANT: a GET MUST NOT mutate claim state. Microsoft SafeLinks, Teams URL
+    unfurling, Outlook link preview and other crawlers automatically *prefetch*
+    these URLs the moment the card is posted — which previously auto-applied a
+    decision ~14s after escalation with no human involved (non-deterministic
+    Approve/Reject). So this handler ONLY renders a confirmation page. The
+    decision is applied solely when a human clicks "Confirm", which fires a POST
+    to this same route (crawlers never POST).
     """
     if decision not in ("Approve", "Reject", "MoreInfo"):
         return HTMLResponse("<h2>Invalid decision value.</h2>", status_code=400)
 
-    payload = TeamsDecisionPayload(
-        claim_id=claim_id, decision=decision, reviewer=reviewer, notes=notes
-    )
-    # Reuse the POST handler (it already does Dataverse update + in-memory update)
-    result = await teams_decision(payload, request=None)
-
-    label = {"Approve": "Approved", "Reject": "Rejected", "MoreInfo": "Sent for More Info"}.get(decision, decision)
+    label = {"Approve": "Approve", "Reject": "Reject", "MoreInfo": "Request More Info"}.get(decision, decision)
     color = {"Approve": "#107C10", "Reject": "#A4262C", "MoreInfo": "#0078D4"}.get(decision, "#000")
+    api_base = get_settings().api_base_url.rstrip("/")
     return HTMLResponse(f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>ClaimSphere — Decision Recorded</title>
+<html><head><meta charset="utf-8"><title>ClaimSphere — Confirm Decision</title>
 <style>body{{font-family:Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f3f2f1}}
 .card{{background:#fff;border-radius:8px;padding:40px 56px;box-shadow:0 2px 8px rgba(0,0,0,.12);text-align:center;max-width:480px}}
-h1{{color:{color};margin:0 0 12px}}p{{color:#605e5c;margin:0}}</style></head>
+h1{{color:{color};margin:0 0 8px;font-size:22px}}p{{color:#605e5c;margin:0 0 20px;line-height:1.5}}
+button{{background:{color};color:#fff;border:0;border-radius:6px;padding:12px 28px;font-size:15px;font-weight:600;cursor:pointer}}
+button:disabled{{opacity:.6;cursor:default}}#done{{display:none;color:{color};font-weight:600;margin-top:14px}}</style></head>
 <body><div class="card">
-<h1>{label}</h1>
-<p>Claim <strong>{claim_id}</strong> has been {label.lower()}.<br>You can close this tab.</p>
+<h1>Confirm: {label}</h1>
+<p>You are about to <strong>{label.lower()}</strong> claim <strong>{claim_id}</strong>.<br>This decision is final. Please confirm.</p>
+<button id="btn" onclick="confirmDecision()">Confirm {label}</button>
+<div id="done"></div>
+<script>
+async function confirmDecision() {{
+  const btn = document.getElementById('btn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  try {{
+    const r = await fetch('{api_base}/webhooks/teams-decision', {{
+      method: 'POST', headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{claim_id: {claim_id!r}, decision: {decision!r}, reviewer: {reviewer!r}, notes: {notes!r}}})
+    }});
+    const data = await r.json();
+    btn.style.display = 'none';
+    const done = document.getElementById('done');
+    done.style.display = 'block';
+    done.textContent = data.status === 'already_decided'
+      ? 'A decision was already recorded for this claim.'
+      : 'Recorded — claim {claim_id} marked as {label.lower()}. You can close this tab.';
+  }} catch (e) {{
+    btn.disabled = false; btn.textContent = 'Retry {label}';
+  }}
+}}
+</script>
 </div></body></html>""")
 
 
