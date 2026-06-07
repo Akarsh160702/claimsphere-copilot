@@ -125,7 +125,7 @@ async def _check_integrations(settings) -> dict:
 
 @router.get("/health/dataverse-write")
 async def dataverse_write_test():
-    """Attempt a real Dataverse write and return the raw API response for debugging."""
+    """Return actual column names for crcce_claim entity from Dataverse metadata."""
     settings = get_settings()
     if not (settings.dataverse_url and settings.dataverse_client_id and settings.dataverse_client_secret):
         return {"error": "Dataverse not configured"}
@@ -135,34 +135,24 @@ async def dataverse_write_test():
         client = DataverseClient()
         token = await client._get_token()
         base = settings.dataverse_url.rstrip("/")
-        test_record = {
-            "crcce_claimnumber":    "CLM-TEST-FULLWRITE",
-            "crcce_policyid":       "POL-TEST-001",
-            "crcce_claimantname":   "Health Check Test",
-            "crcce_claimantemail":  "test@claimsphere.ai",
-            "crcce_claimamount":    500000.0,
-            "crcce_incidentdate":   "2026-06-07",
-            "crcce_fraudscore":     15,
-            "crcce_approvedamount": 400000.0,
-            "crcce_finalpayout":    400000.0,
-            "crcce_rationale":      "Test rationale",
-            "crcce_confidencescore":0.85,
-            "crcce_stpflag":        False,
-            "crcce_escalated":      False,
-            "crcce_description":    "[Health] Status: APPROVED | Decision: APPROVED | Risk: LOW | Full field write test",
-        }
         async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{base}/api/data/v9.2/crcce_claims",
-                json=test_record,
+            async with session.get(
+                f"{base}/api/data/v9.2/EntityDefinitions(LogicalName='crcce_claim')"
+                "/Attributes?$select=LogicalName,DisplayName,AttributeType"
+                "&$filter=AttributeType ne 'Virtual' and IsCustomAttribute eq true"
+                "&$top=50",
                 headers=client._headers(token),
             ) as resp:
-                body = await resp.text()
-                return {
-                    "status": resp.status,
-                    "headers": dict(resp.headers),
-                    "body": body[:500],
-                }
+                body = await resp.json()
+                cols = [
+                    {
+                        "logical_name": a.get("LogicalName"),
+                        "display_name": a.get("DisplayName", {}).get("UserLocalizedLabel", {}).get("Label"),
+                        "type": a.get("AttributeType"),
+                    }
+                    for a in body.get("value", [])
+                ]
+                return {"entity": "crcce_claim", "custom_columns": cols, "count": len(cols)}
     except Exception as e:
         return {"error": str(e)}
 
