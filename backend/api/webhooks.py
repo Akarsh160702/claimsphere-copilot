@@ -41,21 +41,43 @@ async def teams_decision(payload: TeamsDecisionPayload, request: Request):
     claim_id = payload.claim_id
     decision_str = payload.decision
 
-    if claim_id not in _processing_contexts:
-        logger.warning("teams_decision_claim_not_found", claim_id=claim_id)
-        # Return 200 so Teams doesn't show an error — the claim may have
-        # already been processed or the server restarted.
-        return {
-            "status": "not_found",
-            "message": f"Claim {claim_id} not in active queue (may already be resolved)",
-        }
-
     if decision_str not in ("Approve", "Reject", "MoreInfo"):
         raise HTTPException(status_code=400, detail=f"Invalid decision: {decision_str}")
 
+    if decision_str == "Approve":
+        new_status_val = "APPROVED"
+    elif decision_str == "Reject":
+        new_status_val = "REJECTED"
+    else:
+        new_status_val = "PENDING_INFO"
+
+    # Persist to Dataverse FIRST — before any in-memory check so this works
+    # even after a container restart when _processing_contexts is empty.
+    try:
+        from backend.tools.dataverse import DataverseClient
+        dv = DataverseClient()
+        ctx_ref = _processing_contexts.get(claim_id)
+        pol = ctx_ref.submission.policy_id if (ctx_ref and ctx_ref.submission) else ""
+        cln = ctx_ref.submission.claimant.name if (ctx_ref and ctx_ref.submission) else ""
+        await dv.update_claim(
+            claim_id,
+            {"decision": decision_str, "status": new_status_val},
+            policy_id=pol,
+            claimant_name=cln,
+        )
+    except Exception as e:
+        logger.warning("teams_decision_dataverse_update_failed", error=str(e))
+
+    if claim_id not in _processing_contexts:
+        logger.warning("teams_decision_claim_not_found", claim_id=claim_id)
+        return {
+            "status": "not_found",
+            "message": f"Claim {claim_id} not in active queue (Dataverse update attempted).",
+        }
+
     ctx = _processing_contexts[claim_id]
 
-    # Apply decision
+    # Apply decision to in-memory context
     if ctx.adjudication_result:
         try:
             ctx.adjudication_result.decision = Decision(decision_str)
@@ -82,19 +104,6 @@ async def teams_decision(payload: TeamsDecisionPayload, request: Request):
             "channel": "Microsoft Teams",
         },
     )
-
-    # Persist human decision back to Dataverse
-    try:
-        from backend.tools.dataverse import DataverseClient
-        dv = DataverseClient()
-        await dv.update_claim(
-            claim_id,
-            {"decision": decision_str, "status": ctx.status.value},
-            policy_id=ctx.submission.policy_id if ctx.submission else "",
-            claimant_name=ctx.submission.claimant.name if ctx.submission else "",
-        )
-    except Exception as e:
-        logger.warning("teams_decision_dataverse_update_failed", error=str(e))
 
     logger.info(
         "teams_decision_applied",

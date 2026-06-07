@@ -197,7 +197,9 @@ class DataverseClient:
             "crcce_approvedamount":d.get("approved_amount"),
             "crcce_fraudscore":    float(d["fraud_score"]) if d.get("fraud_score") is not None else None,
             "crcce_incidentdate":  incident or None,
-            "crcce_rationale":     (d.get("rationale") or "")[:100],
+            "crcce_rationale":     (
+                f"{str(d.get('claim_id') or '')[:16]}|{(d.get('rationale') or '')}"
+            )[:100],
             "crcce_description":   (
                 f"[{claim_type}][{decision}][{fraud_risk}] {d.get('description', '')}"
             )[:100],
@@ -261,10 +263,18 @@ class DataverseClient:
                             "ts": datetime.utcnow().isoformat(),
                         })
                         raise RuntimeError(f"Dataverse {resp.status}: {body[:200]}")
-                    result = await resp.json() if resp.status != 204 else {}
-                    dv_id = result.get("crcce_claimid", "")
+                    # OData-EntityId header is the most reliable source of the new GUID
+                    import re as _re
+                    entity_hdr = resp.headers.get("OData-EntityId", "")
+                    m = _re.search(r'\(([0-9a-f-]{36})\)', entity_hdr)
+                    dv_id = m.group(1) if m else ""
+                    if not dv_id and resp.status != 204:
+                        result = await resp.json()
+                        dv_id = result.get("crcce_claimid", "")
                     if dv_id and claim_data.get("claim_id"):
                         _claim_dv_id[claim_data["claim_id"]] = dv_id
+                    logger.info("dataverse_create_claim_ok",
+                                claim_id=claim_data.get("claim_id"), dv_id=dv_id)
                     return dv_id or claim_data.get("claim_id", "")
         except Exception as e:
             logger.error("dataverse_create_claim_failed", error=str(e))
@@ -303,6 +313,31 @@ class DataverseClient:
                                 dv_id = rows[0].get("crcce_claimid")
                                 _claim_dv_id[claim_id] = dv_id
             if not dv_id:
+                # Last-resort: claim_id stored as rationale prefix "CLM-xxx|..."
+                ref = claim_id[:16]
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(
+                            f"{self._base_url}/api/data/v9.2/crcce_claims"
+                            f"?$select=crcce_claimid"
+                            f"&$filter=startswith(crcce_rationale,'{ref}|')"
+                            f"&$top=1",
+                            headers=self._headers(token),
+                        ) as r:
+                            if r.status == 200:
+                                rows = (await r.json()).get("value", [])
+                                if rows:
+                                    dv_id = rows[0].get("crcce_claimid")
+                                    if dv_id:
+                                        _claim_dv_id[claim_id] = dv_id
+                except Exception:
+                    pass
+            if not dv_id:
+                _dv_errors.append({
+                    "op": "update_guid_miss", "claim_id": claim_id,
+                    "policy_id": policy_id, "claimant": claimant_name,
+                    "ts": datetime.utcnow().isoformat(),
+                })
                 logger.warning("dataverse_update_no_guid", claim_id=claim_id)
                 return False
             mapped = {}
