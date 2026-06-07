@@ -333,11 +333,16 @@ class DataverseClient:
                 except Exception:
                     pass
             if not dv_id:
-                _dv_errors.append({
-                    "op": "update_guid_miss", "claim_id": claim_id,
-                    "policy_id": policy_id, "claimant": claimant_name,
-                    "ts": datetime.utcnow().isoformat(),
-                })
+                # Only surface to _dv_errors for real update attempts.
+                # Pre-create _save_progress calls have no policy_id/claimant_name
+                # and are expected to miss — don't pollute the error deque.
+                if policy_id or claimant_name or updates.get("decision"):
+                    _dv_errors.append({
+                        "op": "update_guid_miss", "claim_id": claim_id,
+                        "policy_id": policy_id, "claimant": claimant_name,
+                        "updates": list(updates.keys()),
+                        "ts": datetime.utcnow().isoformat(),
+                    })
                 logger.warning("dataverse_update_no_guid", claim_id=claim_id)
                 return False
             mapped = {}
