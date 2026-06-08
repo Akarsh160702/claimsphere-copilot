@@ -7,8 +7,12 @@ interface TopBarProps {
   subtitle: string;
 }
 
+const IS_MAC =
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+
 export function TopBar({ title, subtitle }: TopBarProps) {
   const dataSource = useAppStore((s) => s.dataSource);
+  const setCommandOpen = useAppStore((s) => s.setCommandOpen);
 
   return (
     <header
@@ -37,7 +41,9 @@ export function TopBar({ title, subtitle }: TopBarProps) {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div
+        <button
+          onClick={() => setCommandOpen(true)}
+          aria-label="Search claims and pages"
           style={{
             display: "flex",
             alignItems: "center",
@@ -49,14 +55,21 @@ export function TopBar({ title, subtitle }: TopBarProps) {
             color: palette.textMuted,
             fontSize: 13,
             minWidth: 248,
-            cursor: "text",
+            cursor: "pointer",
+            fontFamily: "inherit",
             transition: "border-color 0.15s, background 0.15s",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = palette.glassBorderStrong)}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = palette.glassBorder)}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = palette.glassBorderStrong;
+            e.currentTarget.style.background = palette.glassFillStrong;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = palette.glassBorder;
+            e.currentTarget.style.background = palette.glassFill;
+          }}
         >
           <Search20Regular />
-          <span style={{ flex: 1 }}>Search claims, policies…</span>
+          <span style={{ flex: 1, textAlign: "left" }}>Search claims, policies…</span>
           <kbd
             style={{
               fontSize: 10.5,
@@ -69,9 +82,9 @@ export function TopBar({ title, subtitle }: TopBarProps) {
               color: palette.textMuted,
             }}
           >
-            ⌘K
+            {IS_MAC ? "⌘K" : "Ctrl K"}
           </kbd>
-        </div>
+        </button>
 
         <button
           aria-label="Notifications"

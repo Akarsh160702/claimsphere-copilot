@@ -12,6 +12,10 @@ interface AppState {
   /** Currently selected claim id (for detail view / CSR context). */
   selectedClaimId: string | null;
   setSelectedClaimId: (id: string | null) => void;
+
+  /** Whether the global ⌘K command palette is open. */
+  commandOpen: boolean;
+  setCommandOpen: (v: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -21,4 +25,6 @@ export const useAppStore = create<AppState>((set) => ({
   setDataSource: (s) => set({ dataSource: s }),
   selectedClaimId: null,
   setSelectedClaimId: (id) => set({ selectedClaimId: id }),
+  commandOpen: false,
+  setCommandOpen: (v) => set({ commandOpen: v }),
 }));

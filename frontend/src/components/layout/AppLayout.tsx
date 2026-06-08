@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { CommandPalette } from "./CommandPalette";
 
 interface AppLayoutProps {
   title: string;
@@ -18,6 +19,8 @@ export function AppLayout({ title, subtitle, children }: AppLayoutProps) {
           {children}
         </main>
       </div>
+      {/* Global ⌘K / Ctrl-K search — mounted once, available on every app page. */}
+      <CommandPalette />
     </div>
   );
 }

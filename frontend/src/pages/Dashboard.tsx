@@ -13,6 +13,7 @@ import { GlassCard } from "@/components/common/GlassCard";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { Skeleton } from "@/components/common/Skeleton";
 import { KpiCard } from "@/components/dashboard/KpiCard";
+import { ImpactBand } from "@/components/dashboard/ImpactBand";
 import { ClaimsVolumeChart } from "@/components/dashboard/ClaimsVolumeChart";
 import { DecisionDonut } from "@/components/dashboard/DecisionDonut";
 import { TypeBar } from "@/components/dashboard/TypeBar";
@@ -49,6 +50,9 @@ export function Dashboard() {
             <KpiCard label="Avg Fraud Score" value={`${metrics.avgFraud}/100`} delta="Low-risk portfolio" trend="up" icon={ShieldCheckmark20Regular} accent={palette.brand} delay={0.1} />
             <KpiCard label="AI Accuracy" value="97.3%" delta="+1.2% this month" trend="up" icon={Target20Regular} accent={palette.success} delay={0.14} />
           </div>
+
+          {/* Business impact — translates STP rate into ROI for judges/execs */}
+          <ImpactBand metrics={metrics} />
 
           {/* Charts + feed */}
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginTop: 16, alignItems: "start" }}>
