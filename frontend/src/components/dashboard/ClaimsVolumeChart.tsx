@@ -10,17 +10,19 @@ import {
 import { useMemo } from "react";
 import type { ClaimListItem } from "@/api/types";
 import { palette } from "@/theme/tokens";
+import { localDateKey } from "@/utils/format";
 import { chartTooltipStyle } from "./chartTheme";
 
-/** Builds a 14-day approved/escalated/rejected volume series from claims. */
+/** Builds a 14-day approved/escalated/rejected volume series from claims,
+ *  ending on today (the viewer's local date). */
 function buildSeries(claims: ClaimListItem[]) {
   const days: { key: string; label: string; Approved: number; Escalated: number; Rejected: number }[] = [];
-  const today = new Date(2026, 5, 3);
+  const today = new Date();
   for (let i = 13; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
     days.push({
-      key: d.toISOString().slice(0, 10),
+      key: localDateKey(d),
       label: d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
       Approved: 0,
       Escalated: 0,
@@ -29,7 +31,8 @@ function buildSeries(claims: ClaimListItem[]) {
   }
   const index = new Map(days.map((d) => [d.key, d]));
   for (const c of claims) {
-    const k = (c.submitted_at ?? "").slice(0, 10);
+    if (!c.submitted_at) continue;
+    const k = localDateKey(new Date(c.submitted_at));
     const bucket = index.get(k);
     if (!bucket) continue;
     const dec = (c.decision ?? "").toLowerCase();

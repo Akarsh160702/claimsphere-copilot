@@ -77,10 +77,12 @@ export function generateSyntheticClaims(count = 50): ClaimListItem[] {
     const payout =
       decision === "Approve" ? Math.round(amount * (0.88 + rand() * 0.1)) : 0;
 
+    // Spread claims across the last 14 days ending today, so the volume chart
+    // always runs up to the current date.
     const daysAgo = Math.floor(rand() * 14);
-    const d = new Date(2026, 5, 3);
+    const d = new Date();
     d.setDate(d.getDate() - daysAgo);
-    d.setHours(8 + Math.floor(rand() * 10), Math.floor(rand() * 60));
+    d.setHours(8 + Math.floor(rand() * 10), Math.floor(rand() * 60), 0, 0);
 
     const seq = String(count - i).padStart(3, "0");
     const ds = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(

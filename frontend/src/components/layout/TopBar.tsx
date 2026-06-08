@@ -1,6 +1,7 @@
-import { Search20Regular, Alert20Regular } from "@fluentui/react-icons";
+import { Search20Regular } from "@fluentui/react-icons";
 import { palette } from "@/theme/tokens";
 import { useAppStore } from "@/store/useAppStore";
+import { NotificationBell } from "./NotificationBell";
 
 interface TopBarProps {
   title: string;
@@ -86,23 +87,7 @@ export function TopBar({ title, subtitle }: TopBarProps) {
           </kbd>
         </button>
 
-        <button
-          aria-label="Notifications"
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 10,
-            background: palette.glassFill,
-            border: `1px solid ${palette.glassBorder}`,
-            color: palette.textSecondary,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-          }}
-        >
-          <Alert20Regular />
-        </button>
+        <NotificationBell />
 
         <div
           style={{
