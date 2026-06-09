@@ -131,11 +131,11 @@ async def record_human_decision(claim_id: str, decision: dict):
     else:
         new_status = ClaimStatus.PENDING_INFO
 
-    async def _sync_dataverse(decision_value: str, status_value: str) -> None:
+    async def _sync_dataverse(decision_value: str, status_value: str) -> bool:
         try:
             from backend.tools.dataverse import DataverseClient
             dv = DataverseClient()
-            await dv.update_claim(
+            return await dv.update_claim(
                 claim_id,
                 {"decision": decision_value, "status": status_value},
                 policy_id=ctx.submission.policy_id if ctx.submission else "",
@@ -143,17 +143,7 @@ async def record_human_decision(claim_id: str, decision: dict):
             )
         except Exception as e:
             logger.warning("human_decision_dataverse_update_failed", claim_id=claim_id, error=str(e))
-
-    # First decision wins — prevents a second browser tab from double-applying
-    already = any(a.action in ("HUMAN_DECISION", "TEAMS_HUMAN_DECISION") for a in ctx.audit_trail)
-    if already:
-        current_decision = (
-            ctx.adjudication_result.decision.value
-            if ctx.adjudication_result and ctx.adjudication_result.decision
-            else human_decision
-        )
-        await _sync_dataverse(current_decision, ctx.status.value)
-        return {"claim_id": claim_id, "decision": current_decision, "status": ctx.status.value, "note": "already_decided"}
+            return False
 
     if ctx.adjudication_result:
         from backend.models.claim import Decision
@@ -161,7 +151,10 @@ async def record_human_decision(claim_id: str, decision: dict):
             ctx.adjudication_result.decision = Decision(human_decision)
         except ValueError:
             pass
-        ctx.adjudication_result.rationale += f"\n\nHuman Override by {adjuster_id}: {notes}"
+        ctx.adjudication_result.rationale = (
+            f"{ctx.adjudication_result.rationale or ''}\n\n"
+            f"Human Override by {adjuster_id}: {notes}"
+        )
         ctx.adjudication_result.confidence_score = 1.0
 
     ctx.status = new_status
@@ -171,10 +164,15 @@ async def record_human_decision(claim_id: str, decision: dict):
         action="HUMAN_DECISION",
         details={"decision": human_decision, "notes": notes, "adjuster": adjuster_id},
     )
-    await _sync_dataverse(human_decision, ctx.status.value)
-    return {"claim_id": claim_id, "decision": human_decision, "status": ctx.status.value}
+    dataverse_updated = await _sync_dataverse(human_decision, ctx.status.value)
+    return {
+        "claim_id": claim_id,
+        "decision": human_decision,
+        "status": ctx.status.value,
+        "dataverse_updated": dataverse_updated,
+    }
 
 
 async def _process_claim_async(claim_id: str, submission: ClaimSubmission):
-    context = await get_orchestrator().process_claim(submission)
+    context = await get_orchestrator().process_claim(submission, claim_id=claim_id)
     _processing_contexts[claim_id] = context

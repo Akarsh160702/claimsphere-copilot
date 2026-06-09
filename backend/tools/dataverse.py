@@ -292,28 +292,11 @@ class DataverseClient:
 
         try:
             token = await self._get_token()
-            # Resolve Dataverse GUID: try cache first, then query by policy+claimant
+            # Resolve Dataverse GUID: try cache first, then the claim_id prefix
+            # stored in crcce_rationale. Policy+claimant is only a final fallback
+            # because demo retries can create rows with the same person/policy.
             dv_id = _claim_dv_id.get(claim_id)
             if not dv_id:
-                # Fallback: query by policy_id + claimant_name from updates or demo store
-                claimant = claimant_name
-                if policy_id and claimant:
-                    async with aiohttp.ClientSession() as session:
-                        filter_url = (
-                            f"{self._base_url}/api/data/v9.2/crcce_claims"
-                            f"?$select=crcce_claimid"
-                            f"&$filter=crcce_policyid eq '{policy_id}'"
-                            f" and crcce_claimantname eq '{claimant}'"
-                            f"&$top=1"
-                        )
-                        async with session.get(filter_url, headers=self._headers(token)) as r:
-                            body = await r.json()
-                            rows = body.get("value", [])
-                            if rows:
-                                dv_id = rows[0].get("crcce_claimid")
-                                _claim_dv_id[claim_id] = dv_id
-            if not dv_id:
-                # Last-resort: claim_id stored as rationale prefix "CLM-xxx|..."
                 ref = claim_id[:16]
                 try:
                     async with aiohttp.ClientSession() as session:
@@ -332,6 +315,24 @@ class DataverseClient:
                                         _claim_dv_id[claim_id] = dv_id
                 except Exception:
                     pass
+            if not dv_id:
+                # Final fallback: query by policy_id + claimant_name
+                claimant = claimant_name
+                if policy_id and claimant:
+                    async with aiohttp.ClientSession() as session:
+                        filter_url = (
+                            f"{self._base_url}/api/data/v9.2/crcce_claims"
+                            f"?$select=crcce_claimid"
+                            f"&$filter=crcce_policyid eq '{policy_id}'"
+                            f" and crcce_claimantname eq '{claimant}'"
+                            f"&$top=1"
+                        )
+                        async with session.get(filter_url, headers=self._headers(token)) as r:
+                            body = await r.json()
+                            rows = body.get("value", [])
+                            if rows:
+                                dv_id = rows[0].get("crcce_claimid")
+                                _claim_dv_id[claim_id] = dv_id
             if not dv_id:
                 # Only surface to _dv_errors for real update attempts.
                 # Pre-create _save_progress calls have no policy_id/claimant_name

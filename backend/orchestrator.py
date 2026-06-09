@@ -42,8 +42,10 @@ class ClaimOrchestrator:
         self.notifier = MockNotificationClient()
         self.payment = MockPaymentClient()
 
-    async def process_claim(self, submission: ClaimSubmission) -> ClaimContext:
+    async def process_claim(self, submission: ClaimSubmission, claim_id: str | None = None) -> ClaimContext:
         context = ClaimContext(submission=submission)
+        if claim_id:
+            context.claim_id = claim_id
         logger.info("claim_processing_started", claim_id=context.claim_id)
 
         try:

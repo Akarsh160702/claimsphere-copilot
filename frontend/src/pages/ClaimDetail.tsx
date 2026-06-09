@@ -311,8 +311,16 @@ export function ClaimDetail() {
                 />
               </div>
               {mutation.isSuccess && (
-                <div style={{ marginTop: 10, fontSize: 13, color: palette.success }}>
-                  Decision recorded successfully.
+                <div
+                  style={{
+                    marginTop: 10,
+                    fontSize: 13,
+                    color: mutation.data?.dataverse_updated === false ? palette.warning : palette.success,
+                  }}
+                >
+                  {mutation.data?.dataverse_updated === false
+                    ? "Decision recorded, but Power Apps sync needs attention."
+                    : "Decision recorded and Power Apps table updated."}
                 </div>
               )}
             </GlassCard>

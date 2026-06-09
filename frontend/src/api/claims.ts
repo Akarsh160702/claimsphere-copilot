@@ -70,7 +70,7 @@ export async function recordHumanDecision(
   decision: "Approve" | "Reject" | "MoreInfo",
   notes: string,
   reviewer: string,
-): Promise<{ claim_id: string; decision: string; status: string }> {
+): Promise<{ claim_id: string; decision: string; status: string; dataverse_updated?: boolean }> {
   const res = await apiClient.post(`/claims/${claimId}/human-decision`, {
     decision,
     notes,
