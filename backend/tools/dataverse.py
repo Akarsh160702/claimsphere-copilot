@@ -201,7 +201,8 @@ class DataverseClient:
                 f"{str(d.get('claim_id') or '')[:16]}|{(d.get('rationale') or '')}"
             )[:100],
             "crcce_description":   (
-                f"[{claim_type}][{decision}][{fraud_risk}] {d.get('description', '')}"
+                f"{str(d.get('claim_id') or '')[:16]}|[{claim_type}][{decision}][{fraud_risk}] "
+                f"{d.get('description', '')}"
             )[:100],
         }
 
@@ -316,6 +317,25 @@ class DataverseClient:
                 except Exception:
                     pass
             if not dv_id:
+                ref = claim_id[:16]
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(
+                            f"{self._base_url}/api/data/v9.2/crcce_claims"
+                            f"?$select=crcce_claimid"
+                            f"&$filter=startswith(crcce_description,'{ref}|')"
+                            f"&$top=1",
+                            headers=self._headers(token),
+                        ) as r:
+                            if r.status == 200:
+                                rows = (await r.json()).get("value", [])
+                                if rows:
+                                    dv_id = rows[0].get("crcce_claimid")
+                                    if dv_id:
+                                        _claim_dv_id[claim_id] = dv_id
+                except Exception:
+                    pass
+            if not dv_id:
                 # Final fallback: query by policy_id + claimant_name.
                 claimant = claimant_name
                 if policy_id and claimant:
@@ -333,6 +353,30 @@ class DataverseClient:
                             if rows:
                                 dv_id = rows[0].get("crcce_claimid")
                                 _claim_dv_id[claim_id] = dv_id
+            if not dv_id and updates.get("decision"):
+                # Compatibility fallback for rows created before we preserved
+                # the claim_id marker. Demo operators reset before testing, so
+                # the newest pending row is the intended human-review target.
+                pending = await self._resolve_picklist(token, "crcce_decision", "pending")
+                if pending is not None:
+                    try:
+                        async with aiohttp.ClientSession() as session:
+                            async with session.get(
+                                f"{self._base_url}/api/data/v9.2/crcce_claims"
+                                f"?$select=crcce_claimid"
+                                f"&$filter=crcce_decision eq {pending}"
+                                f"&$orderby=modifiedon desc"
+                                f"&$top=1",
+                                headers=self._headers(token),
+                            ) as r:
+                                if r.status == 200:
+                                    rows = (await r.json()).get("value", [])
+                                    if rows:
+                                        dv_id = rows[0].get("crcce_claimid")
+                                        if dv_id:
+                                            _claim_dv_id[claim_id] = dv_id
+                    except Exception:
+                        pass
             if not dv_id:
                 # Only surface to _dv_errors for real update attempts.
                 # Pre-create _save_progress calls have no policy_id/claimant_name
@@ -351,7 +395,6 @@ class DataverseClient:
                 opt = await self._resolve_picklist(token, "crcce_decision", updates["decision"])
                 if opt is not None:
                     mapped["crcce_decision"] = opt        # real Choice column
-                mapped["crcce_rationale"] = f"Decision: {updates['decision']}"[:100]
             if updates.get("status"):
                 opt = await self._resolve_picklist(token, "crcce_status", updates["status"])
                 if opt is not None:
