@@ -96,7 +96,7 @@ app.include_router(webhooks.router)
 app.include_router(admin.router)
 
 # MCP (Model Context Protocol) server — exposes ClaimSphere tools to any MCP
-# client: Copilot Studio, Claude Desktop, VS Code Copilot Agent.
+# client: Copilot Studio, AI assistants, and other MCP-compatible tools.
 from backend.api import mcp as mcp_module
 app.include_router(mcp_module.router)
 

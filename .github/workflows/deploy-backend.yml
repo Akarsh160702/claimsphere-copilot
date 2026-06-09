@@ -6,7 +6,7 @@
 # workflow builds on the free GitHub runner and pushes the image to ACR, then
 # tells the Container App to use the new image. No local tooling required.
 #
-# ONE-TIME SETUP (browser only — see COMPANY-LAPTOP-WORKFLOW.md §2.3/2.4):
+# ONE-TIME SETUP (browser only — see DEPLOYMENT.md for complete setup guide):
 #   Repo -> Settings -> Secrets and variables -> Actions
 #     Secrets:  AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
 #     Variables: AZURE_RESOURCE_GROUP, ACR_NAME, CONTAINERAPP_NAME

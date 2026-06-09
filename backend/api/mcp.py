@@ -4,7 +4,7 @@ Spec: https://modelcontextprotocol.io  (protocol version 2025-03-26)
 
 Exposes ClaimSphere as MCP tools consumable by:
   - Copilot Studio (Actions → Model Context Protocol)
-  - Claude Desktop / VS Code Copilot Agent
+  - AI-powered assistants and development tools
   - Any MCP-compatible AI assistant
 
 Transport:

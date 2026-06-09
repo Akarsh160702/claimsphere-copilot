@@ -3,6 +3,8 @@
 
 AI-powered end-to-end insurance claims processing system built on Azure AI Foundry, Power Platform, and Model Context Protocol.
 
+> 📖 **New to this project?** Start with [PROJECT-OVERVIEW.md](PROJECT-OVERVIEW.md) for a complete explanation in simple language!
+
 ---
 
 ## Architecture
@@ -83,7 +85,7 @@ ClaimSphere exposes 6 tools via the Model Context Protocol:
 - `list_claims` — pipeline overview
 - `get_fraud_score` — fraud analysis detail
 
-Any MCP client (Copilot Studio, Claude Desktop, VS Code Copilot) can connect to `/mcp`.
+Any MCP client (Copilot Studio, AI assistants, development tools) can connect to `/mcp`.
 
 ### Copilot Studio Agent
 A Teams bot backed by the MCP server. Users can ask:
@@ -143,6 +145,16 @@ Set `DEMO_MODE=true` in `.env` to run with mock data (no Azure credentials neede
 
 ---
 
+## Documentation
+
+- **[PROJECT-OVERVIEW.md](PROJECT-OVERVIEW.md)** - Complete project explanation for everyone (technical & non-technical)
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Step-by-step Azure deployment guide
+- **[API Documentation](https://ca-api-u5aqvvvbt34hq.politecliff-7ae23c60.eastus.azurecontainerapps.io/docs)** - Interactive API reference
+
+---
+
 ## Team
 
 **NEXORA** — LTM x Microsoft Hack2Future 2026
+
+Built with ❤️ by a team passionate about using AI to transform insurance operations.

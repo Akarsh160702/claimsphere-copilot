@@ -10,7 +10,7 @@
 #   Pushes to `main` touching frontend code, and pull requests (PRs get a free
 #   temporary preview URL — great for reviewing UI changes before merge).
 #
-# ONE-TIME SETUP (from the Azure Portal browser — see COMPANY-LAPTOP-WORKFLOW.md):
+# ONE-TIME SETUP (from the Azure Portal browser — see DEPLOYMENT.md for details):
 #   Create the Static Web App, copy its "Deployment token", then add it as a
 #   repo secret:
 #     Repo -> Settings -> Secrets and variables -> Actions -> New secret
