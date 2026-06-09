@@ -1,5 +1,6 @@
 from functools import lru_cache
 from fastapi import APIRouter, HTTPException, BackgroundTasks
+import structlog
 from backend.models.claim import (
     ClaimSubmission, ClaimResponse, ClaimStatusResponse,
     ClaimContext, ClaimStatus
@@ -7,6 +8,7 @@ from backend.models.claim import (
 from backend.orchestrator import ClaimOrchestrator
 
 router = APIRouter(prefix="/claims", tags=["Claims"])
+logger = structlog.get_logger()
 
 @lru_cache(maxsize=1)
 def _get_orchestrator() -> ClaimOrchestrator:
@@ -113,31 +115,63 @@ async def record_human_decision(claim_id: str, decision: dict):
     ctx = _processing_contexts[claim_id]
     human_decision = decision.get("decision", "Approve")
     notes = decision.get("notes", "Human adjudicator decision")
-    adjuster_id = decision.get("adjuster_id", "human-adjudicator")
+    adjuster_id = (
+        decision.get("adjuster_id")
+        or decision.get("reviewer")
+        or "human-adjudicator"
+    )
+
+    if human_decision not in ("Approve", "Reject", "MoreInfo"):
+        raise HTTPException(status_code=400, detail=f"Invalid decision: {human_decision}")
+
+    if human_decision == "Approve":
+        new_status = ClaimStatus.APPROVED
+    elif human_decision == "Reject":
+        new_status = ClaimStatus.REJECTED
+    else:
+        new_status = ClaimStatus.PENDING_INFO
+
+    async def _sync_dataverse(decision_value: str, status_value: str) -> None:
+        try:
+            from backend.tools.dataverse import DataverseClient
+            dv = DataverseClient()
+            await dv.update_claim(
+                claim_id,
+                {"decision": decision_value, "status": status_value},
+                policy_id=ctx.submission.policy_id if ctx.submission else "",
+                claimant_name=ctx.submission.claimant.name if ctx.submission else "",
+            )
+        except Exception as e:
+            logger.warning("human_decision_dataverse_update_failed", claim_id=claim_id, error=str(e))
 
     # First decision wins — prevents a second browser tab from double-applying
     already = any(a.action in ("HUMAN_DECISION", "TEAMS_HUMAN_DECISION") for a in ctx.audit_trail)
     if already:
-        return {"claim_id": claim_id, "decision": human_decision, "status": ctx.status.value, "note": "already_decided"}
+        current_decision = (
+            ctx.adjudication_result.decision.value
+            if ctx.adjudication_result and ctx.adjudication_result.decision
+            else human_decision
+        )
+        await _sync_dataverse(current_decision, ctx.status.value)
+        return {"claim_id": claim_id, "decision": current_decision, "status": ctx.status.value, "note": "already_decided"}
 
     if ctx.adjudication_result:
         from backend.models.claim import Decision
-        ctx.adjudication_result.decision = Decision(human_decision)
+        try:
+            ctx.adjudication_result.decision = Decision(human_decision)
+        except ValueError:
+            pass
         ctx.adjudication_result.rationale += f"\n\nHuman Override by {adjuster_id}: {notes}"
         ctx.adjudication_result.confidence_score = 1.0
 
-    if human_decision == "Approve":
-        ctx.status = ClaimStatus.APPROVED
-    elif human_decision == "Reject":
-        ctx.status = ClaimStatus.REJECTED
-    else:
-        ctx.status = ClaimStatus.PENDING_INFO
+    ctx.status = new_status
 
     ctx.add_audit(
         agent_name="HumanAdjudicator",
         action="HUMAN_DECISION",
         details={"decision": human_decision, "notes": notes, "adjuster": adjuster_id},
     )
+    await _sync_dataverse(human_decision, ctx.status.value)
     return {"claim_id": claim_id, "decision": human_decision, "status": ctx.status.value}
 
 
