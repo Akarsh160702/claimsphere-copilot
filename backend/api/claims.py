@@ -109,10 +109,6 @@ async def list_claims():
 @router.post("/{claim_id}/human-decision", response_model=dict)
 async def record_human_decision(claim_id: str, decision: dict):
     """Record a human adjudicator's decision on an escalated claim."""
-    if claim_id not in _processing_contexts:
-        raise HTTPException(status_code=404, detail=f"Claim {claim_id} not found")
-
-    ctx = _processing_contexts[claim_id]
     human_decision = decision.get("decision", "Approve")
     notes = decision.get("notes", "Human adjudicator decision")
     adjuster_id = (
@@ -131,19 +127,35 @@ async def record_human_decision(claim_id: str, decision: dict):
     else:
         new_status = ClaimStatus.PENDING_INFO
 
-    async def _sync_dataverse(decision_value: str, status_value: str) -> bool:
+    async def _sync_dataverse(
+        decision_value: str,
+        status_value: str,
+        ctx: ClaimContext | None = None,
+    ) -> bool:
         try:
             from backend.tools.dataverse import DataverseClient
             dv = DataverseClient()
             return await dv.update_claim(
                 claim_id,
                 {"decision": decision_value, "status": status_value},
-                policy_id=ctx.submission.policy_id if ctx.submission else "",
-                claimant_name=ctx.submission.claimant.name if ctx.submission else "",
+                policy_id=ctx.submission.policy_id if (ctx and ctx.submission) else "",
+                claimant_name=ctx.submission.claimant.name if (ctx and ctx.submission) else "",
             )
         except Exception as e:
             logger.warning("human_decision_dataverse_update_failed", claim_id=claim_id, error=str(e))
             return False
+
+    if claim_id not in _processing_contexts:
+        dataverse_updated = await _sync_dataverse(human_decision, new_status.value)
+        return {
+            "claim_id": claim_id,
+            "decision": human_decision,
+            "status": new_status.value,
+            "dataverse_updated": dataverse_updated,
+            "note": "not_in_active_context",
+        }
+
+    ctx = _processing_contexts[claim_id]
 
     if ctx.adjudication_result:
         from backend.models.claim import Decision
@@ -164,7 +176,7 @@ async def record_human_decision(claim_id: str, decision: dict):
         action="HUMAN_DECISION",
         details={"decision": human_decision, "notes": notes, "adjuster": adjuster_id},
     )
-    dataverse_updated = await _sync_dataverse(human_decision, ctx.status.value)
+    dataverse_updated = await _sync_dataverse(human_decision, ctx.status.value, ctx)
     return {
         "claim_id": claim_id,
         "decision": human_decision,

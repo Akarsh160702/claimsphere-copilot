@@ -316,7 +316,7 @@ class DataverseClient:
                 except Exception:
                     pass
             if not dv_id:
-                # Final fallback: query by policy_id + claimant_name
+                # Final fallback: query by policy_id + claimant_name.
                 claimant = claimant_name
                 if policy_id and claimant:
                     async with aiohttp.ClientSession() as session:
