@@ -181,6 +181,368 @@ All Azure services are mocked with realistic data. Perfect for:
 
 ---
 
+## 🎯 Complete Demonstration Flow
+
+Follow this complete flow to test and demonstrate the entire ClaimSphere system from submission to approval.
+
+### 📍 **Access Points**
+
+Before starting, bookmark these URLs:
+
+| Component | URL | Purpose |
+|-----------|-----|---------|
+| **Web Dashboard** | https://orange-beach-00e4c8e0f.7.azurestaticapps.net | Submit and track claims |
+| **Microsoft Teams** | [Your Teams workspace] | Human review and approval |
+| **Copilot Studio Bot** | [Teams → ClaimSphere Assistant] | Conversational claim submission |
+| **Power Apps** | https://make.powerapps.com | View Dataverse data |
+| **API Docs** | https://ca-api-u5aqvvvbt34hq.politecliff-7ae23c60.eastus.azurecontainerapps.io/docs | API testing |
+
+---
+
+### 🔄 **Flow 1: Web UI → Auto-Approved**
+
+**Test a simple claim that gets automatically approved**
+
+#### Step 1: Submit Claim via Web UI
+1. Open: https://orange-beach-00e4c8e0f.7.azurestaticapps.net
+2. Click **"New Claim"** button
+3. Fill in the form:
+   ```
+   Policy ID: POL-HEALTH-001
+   Claim Type: Health
+   Claimant Name: Rajesh Kumar
+   Email: rajesh@example.com
+   Incident Date: 2024-06-05
+   Claim Amount: ₹1,50,000
+   Description: Minor outpatient surgery at Apollo Hospital
+   ```
+4. Click **"Submit Claim"**
+5. Watch the **7 AI agents process** in real-time (~5 seconds)
+
+#### Step 2: View Result
+- ✅ **Status**: APPROVED
+- 💰 **Approved Amount**: ₹1,45,000 (after ₹5,000 deductible)
+- 📊 **Confidence**: 96%
+- ⏱️ **Processing Time**: ~5 seconds
+
+#### Step 3: Verify in Power Apps (Dataverse)
+1. Go to: https://make.powerapps.com
+2. Navigate to **Data → Tables → Claims (cs_claim)**
+3. Find your claim by Claim ID
+4. Verify:
+   - Status = "Approved"
+   - Approved Amount = ₹1,45,000
+   - Fraud Score = Low (15-20)
+   - All agent data populated
+
+**Result**: ✅ Claim automatically approved, no human intervention needed!
+
+---
+
+### 🔄 **Flow 2: Web UI → Escalated → Teams Approval**
+
+**Test a high-risk claim that requires human review**
+
+#### Step 1: Submit High-Risk Claim
+1. Open: https://orange-beach-00e4c8e0f.7.azurestaticapps.net
+2. Click **"New Claim"**
+3. Fill in the form with suspicious details:
+   ```
+   Policy ID: POL-HEALTH-001
+   Claim Type: Health
+   Claimant Name: Suspicious User
+   Email: suspicious@example.com
+   Incident Date: 2024-06-08
+   Claim Amount: ₹49,90,000
+   Description: Emergency surgery at Unknown Clinic
+   ```
+4. Click **"Submit Claim"**
+
+#### Step 2: View Escalation Result
+- 🚨 **Status**: ESCALATE
+- ⚠️ **Fraud Score**: 87/100 (High Risk)
+- 🚩 **Red Flags Detected**:
+  - Amount is 99.8% of policy limit
+  - Hospital not in verified network
+  - High-risk pattern detected
+- 📋 **Recommendation**: Manual review required
+
+#### Step 3: Check Microsoft Teams
+1. Open **Microsoft Teams**
+2. Go to **Claims Operations** team
+3. Navigate to **#claims-review** channel
+4. You'll see an **Adaptive Card** with:
+   - Claim summary
+   - Fraud indicators
+   - AI recommendation
+   - Three action buttons:
+     - ✅ **Approve**
+     - ❌ **Reject**
+     - 📋 **Request More Info**
+
+#### Step 4: Make Decision in Teams
+**Option A - Approve:**
+1. Click **"✅ Approve"** button
+2. Card updates to show "Decision recorded"
+3. Power Automate workflow triggers automatically:
+   - Updates Dataverse (Status → "Approved")
+   - Calls backend webhook
+   - Sends approval email to customer
+
+**Option B - Reject:**
+1. Click **"❌ Reject"** button
+2. Provide rejection reason (if prompted)
+3. Workflow updates:
+   - Status → "Rejected"
+   - Sends rejection email with reason
+
+**Option C - Request More Info:**
+1. Click **"📋 Request More Info"**
+2. Specify what's needed
+3. Status → "Pending Information"
+4. Email sent to customer with requirements
+
+#### Step 5: Verify Updates
+1. **In Web Dashboard**:
+   - Refresh the claim detail page
+   - Status updated in real-time
+   - Decision and timestamp shown
+
+2. **In Power Apps**:
+   - Go to cs_claim table
+   - Find the claim
+   - Verify status change
+   - Check audit log entries
+
+**Result**: 🎯 High-risk claim successfully escalated to human, approved via Teams, all systems updated!
+
+---
+
+### 🔄 **Flow 3: Copilot Studio Bot → Conversational Submission**
+
+**Submit a claim using natural language via Teams chatbot**
+
+#### Step 1: Open Copilot in Teams
+1. Open **Microsoft Teams**
+2. Go to **Chat**
+3. Find **"ClaimSphere Assistant"** bot
+4. If not visible, search for it or add it from Apps
+
+#### Step 2: Start Conversation
+Type: `I want to file a claim`
+
+#### Step 3: Follow Conversational Flow
+```
+🤖 Bot: "I can help you submit a claim. What type of insurance 
+         claim is this? (Health / Motor / Property)"
+
+👤 You: Health
+
+🤖 Bot: "Got it. What's your Policy ID?"
+
+👤 You: POL-HEALTH-001
+
+🤖 Bot: "What is the incident date? (YYYY-MM-DD)"
+
+👤 You: 2024-06-05
+
+🤖 Bot: "What is the claim amount in rupees?"
+
+👤 You: 250000
+
+🤖 Bot: "Please describe what happened"
+
+👤 You: Hospitalization for fever at Fortis Hospital
+
+🤖 Bot: "✅ Your claim has been submitted successfully!
+         
+         Claim ID: CLM-20260609-XYZ123
+         Status: Processing
+         
+         Our AI is reviewing your claim right now. You'll 
+         receive an email with the decision within a few 
+         minutes. You can also ask me: 'What's the status 
+         of CLM-20260609-XYZ123?'"
+```
+
+#### Step 4: Check Claim Status via Bot
+Type: `What's the status of CLM-20260609-XYZ123?`
+
+```
+🤖 Bot: "Here's your claim status:
+         
+         📊 Claim ID: CLM-20260609-XYZ123
+         ✅ Status: APPROVED
+         💰 Claim Amount: ₹2,50,000
+         💵 Approved Amount: ₹2,45,000
+         📅 Decision Date: June 9, 2024
+         🏦 Payment: Will be credited in 2 business days
+         
+         Deductions:
+         • Deductible: ₹5,000
+         
+         Need anything else?"
+```
+
+#### Step 5: Ask Policy Questions
+Type: `Am I covered for dental surgery?`
+
+```
+🤖 Bot: "Let me check your policy POL-HEALTH-001...
+         
+         Yes! Dental surgery is covered with these conditions:
+         • Maximum coverage: ₹2 lakhs per year
+         • Waiting period: 1 year (you've completed this ✓)
+         • Requires pre-authorization 48 hours before surgery
+         • Cosmetic dentistry is excluded
+         
+         You're good to go! Just remember to get pre-authorization."
+```
+
+#### Step 6: Verify in Systems
+The same claim appears in:
+- ✅ Web Dashboard
+- ✅ Power Apps (Dataverse)
+- ✅ Can be escalated to Teams if high-risk
+
+**Result**: 🤖 Natural language claim submission works seamlessly, integrated with entire system!
+
+---
+
+### 🔄 **Flow 4: API Integration → Direct Submission**
+
+**Submit claim programmatically via API (for system integrations)**
+
+#### Step 1: Submit via API
+```bash
+curl -X POST https://ca-api-u5aqvvvbt34hq.politecliff-7ae23c60.eastus.azurecontainerapps.io/claims/submit/sync \
+  -H "Content-Type: application/json" \
+  -d '{
+    "policy_id": "POL-HEALTH-001",
+    "claim_type": "Health",
+    "claimant_name": "API Test User",
+    "claimant_email": "api@example.com",
+    "incident_date": "2024-06-05",
+    "claim_amount": 180000,
+    "description": "Emergency room visit"
+  }'
+```
+
+#### Step 2: Review Response
+```json
+{
+  "claim_id": "CLM-20260609-API456",
+  "status": "Approved",
+  "decision": {
+    "result": "APPROVE",
+    "approved_amount": 175000,
+    "confidence": 0.95
+  }
+}
+```
+
+#### Step 3: Check Status via API
+```bash
+curl https://ca-api-u5aqvvvbt34hq.politecliff-7ae23c60.eastus.azurecontainerapps.io/claims/CLM-20260609-API456/status
+```
+
+**Result**: 🔌 API integration works, claim processed through same pipeline!
+
+---
+
+### 📊 **Complete System Integration Map**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SUBMISSION CHANNELS                       │
+├─────────────────────────────────────────────────────────────┤
+│  1. Web UI                                                   │
+│  2. Copilot Studio Bot (Teams)                              │
+│  3. REST API                                                │
+└────────────────────────┬────────────────────────────────────┘
+                         ↓
+                ┌────────────────┐
+                │  FastAPI       │
+                │  Backend       │
+                └────────┬───────┘
+                         ↓
+                ┌────────────────┐
+                │  7-Agent       │ ← Azure OpenAI, Doc Intelligence
+                │  AI Pipeline   │ ← AI Search (RAG)
+                └────────┬───────┘
+                         ↓
+              ┌──────────┴──────────┐
+              ↓                     ↓
+         [APPROVE/REJECT]      [ESCALATE]
+              ↓                     ↓
+              ↓            ┌────────────────┐
+              ↓            │ Power Automate │
+              ↓            │ Workflow       │
+              ↓            └────────┬───────┘
+              ↓                     ↓
+              ↓            ┌────────────────┐
+              ↓            │ Microsoft      │
+              ↓            │ Teams Card     │
+              ↓            └────────┬───────┘
+              ↓                     ↓
+              ↓            [Human Decision]
+              ↓                     ↓
+              └──────────┬──────────┘
+                         ↓
+                ┌────────────────┐
+                │  Dataverse     │ ← All claims stored
+                │  (Power Apps)  │ ← Audit logs
+                └────────────────┘
+                         ↓
+                ┌────────────────┐
+                │  Customer      │ ← Email notification
+                │  Notification  │ ← Status update
+                └────────────────┘
+```
+
+---
+
+### 🧪 **Test Scenarios Summary**
+
+| Scenario | Input Amount | Expected Outcome | Where to Check |
+|----------|--------------|------------------|----------------|
+| **Simple Approval** | ₹1,50,000 | Auto-approved in 5s | Web UI + Power Apps |
+| **High-Risk Escalation** | ₹49,90,000 | Escalated to Teams | Teams #claims-review |
+| **Policy Exclusion** | Cosmetic surgery | Auto-rejected | Web UI + Power Apps |
+| **Missing Documents** | No docs uploaded | Pending info | Web UI (missing items list) |
+| **Copilot Submission** | Any valid claim | Same as Web UI | Bot + Power Apps |
+
+---
+
+### 📍 **Quick Access Checklist**
+
+Before demonstrating, ensure you have access to:
+
+- [ ] Web Dashboard URL open in browser
+- [ ] Microsoft Teams open with ClaimSphere bot
+- [ ] Power Apps portal open (Dataverse tables)
+- [ ] Teams #claims-review channel visible
+- [ ] API docs open (for technical demo)
+- [ ] Test policy IDs ready (POL-HEALTH-001, etc.)
+
+---
+
+### 💡 **Pro Tips for Demonstration**
+
+1. **Show Auto-Approval First**: Start with simple claim to show speed (5 seconds!)
+2. **Then Show Escalation**: Demonstrate human-in-the-loop with Teams card
+3. **Use Copilot for Wow Factor**: Natural language is impressive
+4. **Refresh Power Apps**: Show data persistence in real-time
+5. **Mention Cost**: $4 for entire hackathon, $0.05 per claim
+
+---
+
+### 🎬 **30-Second Elevator Pitch**
+
+*"ClaimSphere processes insurance claims in 5 seconds instead of 15 days. Submit via web, Teams bot, or API. 7 AI agents analyze the claim. Simple cases auto-approve. High-risk cases go to Teams for human review with one-click approval. Everything syncs to Power Apps. Built entirely on Microsoft stack: Azure AI, Power Platform, Teams."*
+
+---
+
 ## 📚 Documentation
 
 | Document | Description |
