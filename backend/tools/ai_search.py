@@ -145,6 +145,22 @@ class AISearchClient:
         return self._search_client
 
     async def get_policy(self, policy_id: str) -> Optional[dict]:
+        # Try local files first as source of truth
+        try:
+            from backend.data_seeder import POLICIES_DIR
+            import os
+            import json
+            if os.path.exists(POLICIES_DIR):
+                for filename in os.listdir(POLICIES_DIR):
+                    if filename.endswith(".json"):
+                        filepath = os.path.join(POLICIES_DIR, filename)
+                        with open(filepath, "r", encoding="utf-8") as f:
+                            p = json.load(f)
+                            if p.get("policy_id") == policy_id:
+                                return p
+        except Exception as ex:
+            logger.error("local_policy_lookup_failed", error=str(ex), policy_id=policy_id)
+
         if self.settings.demo_mode:
             await asyncio.sleep(0.1)
             return DEMO_POLICIES.get(policy_id)
@@ -164,6 +180,43 @@ class AISearchClient:
             return DEMO_POLICIES.get(policy_id)
 
     async def search_policy_terms(self, query: str, policy_type: str = None) -> list[dict]:
+        # Try searching local policies first as the primary source of truth
+        try:
+            from backend.data_seeder import POLICIES_DIR
+            import os
+            import json
+            local_policies = []
+            if os.path.exists(POLICIES_DIR):
+                for filename in os.listdir(POLICIES_DIR):
+                    if filename.endswith(".json"):
+                        with open(os.path.join(POLICIES_DIR, filename), "r", encoding="utf-8") as f:
+                            local_policies.append(json.load(f))
+            
+            if local_policies:
+                # Simple keyword search fallback
+                query_words = set(query.lower().split())
+                matched = []
+                for p in local_policies:
+                    if policy_type and p.get("policy_type") != policy_type:
+                        continue
+                    # score matches
+                    score = 0
+                    p_str = json.dumps(p).lower()
+                    for word in query_words:
+                        if word in p_str:
+                            score += 1
+                    if score > 0:
+                        matched.append((score, p))
+                matched.sort(key=lambda x: x[0], reverse=True)
+                if matched:
+                    return [p for score, p in matched[:3]]
+                # If no keyword matches, return the first 3 filtered by policy_type to avoid empty results
+                filtered = [p for p in local_policies if not policy_type or p.get("policy_type") == policy_type]
+                if filtered:
+                    return filtered[:3]
+        except Exception as ex:
+            logger.error("local_policy_search_failed", error=str(ex))
+
         if self.settings.demo_mode:
             await asyncio.sleep(0.2)
             results = []
@@ -185,37 +238,6 @@ class AISearchClient:
             return [dict(r) for r in results]
         except Exception as e:
             logger.error("policy_search_failed", error=str(e))
-            # Fall back to local policies list search
-            try:
-                from backend.data_seeder import POLICIES_DIR
-                import os
-                import json
-                local_policies = []
-                if os.path.exists(POLICIES_DIR):
-                    for filename in os.listdir(POLICIES_DIR):
-                        if filename.endswith(".json"):
-                            with open(os.path.join(POLICIES_DIR, filename), "r", encoding="utf-8") as f:
-                                local_policies.append(json.load(f))
-                # Simple keyword search fallback
-                query_words = set(query.lower().split())
-                matched = []
-                for p in local_policies:
-                    if policy_type and p.get("policy_type") != policy_type:
-                        continue
-                    # score matches
-                    score = 0
-                    p_str = json.dumps(p).lower()
-                    for word in query_words:
-                        if word in p_str:
-                            score += 1
-                    if score > 0:
-                        matched.append((score, p))
-                matched.sort(key=lambda x: x[0], reverse=True)
-                if matched:
-                    return [p for score, p in matched[:3]]
-            except Exception as ex:
-                logger.error("policy_search_fallback_failed", error=str(ex))
-            
             # Final fallback to DEMO_POLICIES
             results = []
             for policy in DEMO_POLICIES.values():
