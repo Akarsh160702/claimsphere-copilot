@@ -234,6 +234,8 @@ class DataverseClient:
             token = await self._get_token()
             url = f"{self._base_url}/api/data/v9.2/crcce_claims"
             payload = {k: v for k, v in self._map_claim(claim_data).items() if v is not None}
+            # Always set crcce_name to the claim ID
+            payload["crcce_name"] = claim_data.get("claim_id")
             # Inject claim_id under the primary-name column only if it's not
             # already mapped (e.g. in this env the primary is crcce_claimantname
             # which is already mapped — don't overwrite the actual claimant name).
@@ -438,15 +440,35 @@ class DataverseClient:
             except Exception:
                 token = ""
 
-        # Get primary key
-        primary = "crcce_name"
-        if token:
-            try:
-                primary = await self._get_primary_name_attr(token)
-            except Exception:
-                pass
+        # Try to find the actual claim ID (which starts with CLM-)
+        claim_id = ""
+        if row.get("crcce_name") and str(row.get("crcce_name")).startswith("CLM-"):
+            claim_id = str(row.get("crcce_name"))
+        
+        # If not found, try to extract from description/rationale prefix
+        if not claim_id:
+            desc = row.get("crcce_description") or ""
+            if "|" in desc:
+                prefix = desc.split("|", 1)[0]
+                if prefix.startswith("CLM-"):
+                    claim_id = prefix
+        
+        if not claim_id:
+            rat = row.get("crcce_rationale") or ""
+            if "|" in rat:
+                prefix = rat.split("|", 1)[0]
+                if prefix.startswith("CLM-"):
+                    claim_id = prefix
 
-        claim_id = row.get(primary) or row.get("crcce_name") or ""
+        # Fall back to primary key or crcce_name if no CLM ID found
+        if not claim_id:
+            primary = "crcce_name"
+            if token:
+                try:
+                    primary = await self._get_primary_name_attr(token)
+                except Exception:
+                    pass
+            claim_id = row.get(primary) or row.get("crcce_name") or ""
         
         # Parse description and rationale (remove claim_id prefix if present)
         description = row.get("crcce_description") or ""
@@ -615,17 +637,29 @@ class DataverseClient:
         try:
             token = await self._get_token()
             primary = await self._get_primary_name_attr(token)
-            url = (
-                f"{self._base_url}/api/data/v9.2/crcce_claims"
-                f"?$filter={primary} eq '{claim_id}'"
-            )
+            
+            # Try searching by crcce_name first if it looks like a standard CLM ID
+            url = None
+            if claim_id.startswith("CLM-"):
+                url = f"{self._base_url}/api/data/v9.2/crcce_claims?$filter=crcce_name eq '{claim_id}'"
+            
+            if url:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, headers=self._headers(token)) as resp:
+                        result = await resp.json()
+                        values = result.get("value", [])
+                        if values:
+                            return await self.map_claim_from_dataverse(values[0], token)
+
+            # Fall back to searching by primary key
+            url = f"{self._base_url}/api/data/v9.2/crcce_claims?$filter={primary} eq '{claim_id}'"
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=self._headers(token)) as resp:
                     result = await resp.json()
                     values = result.get("value", [])
                     if values:
                         return await self.map_claim_from_dataverse(values[0], token)
-                    return None
+            return None
         except Exception as e:
             logger.error("dataverse_get_claim_failed", error=str(e))
             return _demo_store.get(claim_id)
