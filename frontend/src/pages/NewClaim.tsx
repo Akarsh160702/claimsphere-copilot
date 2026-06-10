@@ -227,7 +227,7 @@ export function NewClaim() {
                   </div>
                   <div>
                     <label style={labelStyle}>Channel</label>
-                    <select value={form.channel} onChange={(e) => set("channel", e.target.value as Channel)} style={inputStyle}>
+                    <select value={form.channel} onChange={(e) => set("channel", e.target.value as Channel)} style={selectStyle}>
                       {(["Web", "Email", "Teams", "Phone", "CSR"] as Channel[]).map((c) => (
                         <option key={c} value={c}>{c}</option>
                       ))}
@@ -509,6 +509,21 @@ const inputStyle: React.CSSProperties = {
   background: palette.glassFill, border: `1px solid ${palette.glassBorder}`,
   color: palette.textPrimary, outline: "none", boxSizing: "border-box",
   fontFamily: "inherit",
+};
+
+const selectStyle: React.CSSProperties = {
+  width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 13.5,
+  background: palette.glassFill, border: `1px solid ${palette.glassBorder}`,
+  color: palette.textPrimary, outline: "none", boxSizing: "border-box",
+  fontFamily: "inherit", cursor: "pointer",
+  WebkitAppearance: "none", /* Remove default Chrome/Safari styling */
+  MozAppearance: "none", /* Remove default Firefox styling */
+  appearance: "none", /* Standard property */
+  backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+  backgroundRepeat: "no-repeat",
+  backgroundPosition: "right 10px center",
+  backgroundSize: "16px",
+  paddingRight: "36px", /* Space for custom arrow */
 };
 
 const btnStyle: React.CSSProperties = {
