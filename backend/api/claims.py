@@ -232,9 +232,17 @@ async def list_claims():
     if not all_claims:
         return in_memory
         
-    # Map/merge lists using claim_id to avoid duplicates
+    # Map/merge lists using claim_id to avoid duplicates (with fallback for sliced IDs)
     merged = {c["claim_id"]: c for c in all_claims}
     for c in in_memory:
+        # Match if claim_id is equal or one is a prefix of another (min length 12)
+        match_key = None
+        for key in list(merged.keys()):
+            if len(key) >= 12 and (c["claim_id"].startswith(key) or key.startswith(c["claim_id"])):
+                match_key = key
+                break
+        if match_key:
+            del merged[match_key]
         merged[c["claim_id"]] = c
         
     return list(merged.values())

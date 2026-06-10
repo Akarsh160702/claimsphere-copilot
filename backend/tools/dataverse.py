@@ -198,10 +198,10 @@ class DataverseClient:
             "crcce_fraudscore":    float(d["fraud_score"]) if d.get("fraud_score") is not None else None,
             "crcce_incidentdate":  incident or None,
             "crcce_rationale":     (
-                f"{str(d.get('claim_id') or '')[:16]}|{(d.get('rationale') or '')}"
+                f"{str(d.get('claim_id') or '')[:36]}|{(d.get('rationale') or '')}"
             )[:100],
             "crcce_description":   (
-                f"{str(d.get('claim_id') or '')[:16]}|[{claim_type}][{decision}][{fraud_risk}] "
+                f"{str(d.get('claim_id') or '')[:36]}|[{claim_type}][{decision}][{fraud_risk}] "
                 f"{d.get('description', '')}"
             )[:100],
         }
