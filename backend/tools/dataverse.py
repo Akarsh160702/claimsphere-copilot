@@ -234,8 +234,6 @@ class DataverseClient:
             token = await self._get_token()
             url = f"{self._base_url}/api/data/v9.2/crcce_claims"
             payload = {k: v for k, v in self._map_claim(claim_data).items() if v is not None}
-            # Always set crcce_name to the claim ID
-            payload["crcce_name"] = claim_data.get("claim_id")
             # Inject claim_id under the primary-name column only if it's not
             # already mapped (e.g. in this env the primary is crcce_claimantname
             # which is already mapped — don't overwrite the actual claimant name).
@@ -638,27 +636,23 @@ class DataverseClient:
             token = await self._get_token()
             primary = await self._get_primary_name_attr(token)
             
-            # Try searching by crcce_name first if it looks like a standard CLM ID
-            url = None
-            if claim_id.startswith("CLM-"):
-                url = f"{self._base_url}/api/data/v9.2/crcce_claims?$filter=crcce_name eq '{claim_id}'"
+            # Select query filter based on primary name column and claim_id prefix
+            if primary == "crcce_name":
+                filter_str = f"crcce_name eq '{claim_id}'"
+            elif claim_id.startswith("CLM-"):
+                filter_str = f"startswith(crcce_description, '{claim_id}')"
+            else:
+                filter_str = f"{primary} eq '{claim_id}'"
+                
+            url = f"{self._base_url}/api/data/v9.2/crcce_claims?$filter={filter_str}"
             
-            if url:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url, headers=self._headers(token)) as resp:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=self._headers(token)) as resp:
+                    if resp.status == 200:
                         result = await resp.json()
                         values = result.get("value", [])
                         if values:
                             return await self.map_claim_from_dataverse(values[0], token)
-
-            # Fall back to searching by primary key
-            url = f"{self._base_url}/api/data/v9.2/crcce_claims?$filter={primary} eq '{claim_id}'"
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=self._headers(token)) as resp:
-                    result = await resp.json()
-                    values = result.get("value", [])
-                    if values:
-                        return await self.map_claim_from_dataverse(values[0], token)
             return None
         except Exception as e:
             logger.error("dataverse_get_claim_failed", error=str(e))
