@@ -419,6 +419,195 @@ class DataverseClient:
                 _demo_store[claim_id].update(updates)
             return False
 
+    async def _resolve_picklist_to_string(self, token: str, attr: str, int_val: int) -> str:
+        if int_val is None:
+            return ""
+        mapping = await self._get_picklist_map(token, attr)
+        for label, val in mapping.items():
+            if val == int_val:
+                return label.title()
+        return str(int_val)
+
+    async def map_claim_from_dataverse(self, row: dict, token: str = None) -> dict:
+        if not row:
+            return {}
+            
+        if not token:
+            try:
+                token = await self._get_token()
+            except Exception:
+                token = ""
+
+        # Get primary key
+        primary = "crcce_name"
+        if token:
+            try:
+                primary = await self._get_primary_name_attr(token)
+            except Exception:
+                pass
+
+        claim_id = row.get(primary) or row.get("crcce_name") or ""
+        
+        # Parse description and rationale (remove claim_id prefix if present)
+        description = row.get("crcce_description") or ""
+        if "|" in description:
+            parts = description.split("|", 1)
+            # Check if first part looks like a prefix
+            if len(parts[0]) <= 36 and (not claim_id or parts[0] in claim_id or claim_id.startswith(parts[0])):
+                description = parts[1]
+                # Strip leading brackets if any
+                import re
+                description = re.sub(r'^(?:\[.*?\]\s*)+', '', description)
+
+        rationale = row.get("crcce_rationale") or ""
+        if "|" in rationale:
+            parts = rationale.split("|", 1)
+            if len(parts[0]) <= 36 and (not claim_id or parts[0] in claim_id or claim_id.startswith(parts[0])):
+                rationale = parts[1]
+
+        # Resolve choices
+        async def get_choice(attr):
+            val = row.get(attr)
+            if val is None:
+                return ""
+            if token:
+                try:
+                    lbl = await self._resolve_picklist_to_string(token, attr, val)
+                    if lbl:
+                        return lbl
+                except Exception:
+                    pass
+            return str(val)
+
+        decision_lbl = (await get_choice("crcce_decision")).lower()
+        status_lbl = (await get_choice("crcce_status")).lower()
+        claim_type_lbl = (await get_choice("crcce_claimtype")).lower()
+        priority_lbl = (await get_choice("crcce_priority")).lower()
+
+        # Map labels to frontend strings
+        # Decision
+        decision = None
+        if "approved" in decision_lbl or "approve" in decision_lbl:
+            decision = "Approve"
+        elif "denied" in decision_lbl or "reject" in decision_lbl:
+            decision = "Reject"
+        elif "pending" in decision_lbl or "escalat" in decision_lbl:
+            decision = "Escalate"
+
+        # Status
+        status = "Processing"
+        if "closed" in status_lbl or "approved" in status_lbl:
+            status = "Approved"
+        elif "rejected" in status_lbl or "denied" in status_lbl:
+            status = "Rejected"
+        elif "pending" in status_lbl:
+            status = "Pending Information"
+        elif "open" in status_lbl:
+            if decision == "Escalate":
+                status = "Under Human Review"
+            else:
+                status = "Processing"
+
+        # ClaimType
+        claim_type = "Health"
+        if "accident" in claim_type_lbl or "motor" in claim_type_lbl:
+            claim_type = "Motor"
+        elif "fire" in claim_type_lbl or "property" in claim_type_lbl:
+            claim_type = "Property"
+        elif "travel" in claim_type_lbl:
+            claim_type = "Travel"
+        elif "health" in claim_type_lbl or "other" in claim_type_lbl:
+            claim_type = "Health"
+
+        # Priority
+        priority = "Medium"
+        if "low" in priority_lbl:
+            priority = "Low"
+        elif "high" in priority_lbl:
+            priority = "High"
+        elif "medium" in priority_lbl:
+            priority = "Medium"
+
+        # Get timestamps
+        createdon = row.get("createdon") or row.get("created_at") or ""
+        modifiedon = row.get("modifiedon") or row.get("updated_at") or createdon
+
+        # Map to standard API response format
+        return {
+            "claim_id": claim_id,
+            "status": status,
+            "claim_type": claim_type,
+            "claim_amount": row.get("crcce_claimamount") or 0.0,
+            "claimant_name": row.get("crcce_claimantname") or "Customer",
+            "claimant_email": row.get("crcce_claimantemail") or "",
+            "policy_id": row.get("crcce_policyid") or "",
+            "submitted_at": createdon,
+            "updated_at": modifiedon,
+            "decision": decision,
+            "final_payout": row.get("crcce_approvedamount") or 0.0,
+            "fraud_score": int(row.get("crcce_fraudscore")) if row.get("crcce_fraudscore") is not None else 0,
+            "channel": "Web",
+            "description": description,
+            "rationale": rationale,
+            "priority": priority
+        }
+
+    async def get_claim_documents(self, claim_id: str) -> list[dict]:
+        if self.settings.demo_mode:
+            return [doc for doc in _demo_docs.values() if doc.get("claim_id") == claim_id]
+        
+        try:
+            token = await self._get_token()
+            url = (
+                f"{self._base_url}/api/data/v9.2/crcce_claimdocuments"
+                f"?$filter=crcce_claimid eq '{claim_id}'"
+            )
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=self._headers(token)) as resp:
+                    result = await resp.json()
+                    rows = result.get("value", [])
+                    return [
+                        {
+                            "doc_id": r.get("crcce_claimdocumentid"),
+                            "claim_id": r.get("crcce_claimid"),
+                            "document_type": r.get("crcce_documenttype"),
+                            "blob_url": r.get("crcce_bloburl"),
+                            "extracted_data": r.get("crcce_extracteddata")
+                        }
+                        for r in rows
+                    ]
+        except Exception as e:
+            logger.error("dataverse_get_documents_failed", error=str(e))
+            return []
+
+    async def get_claim_audit_logs(self, claim_id: str) -> list[dict]:
+        if self.settings.demo_mode:
+            return [log for log in _demo_logs if log.get("claim_id") == claim_id]
+        
+        try:
+            token = await self._get_token()
+            url = (
+                f"{self._base_url}/api/data/v9.2/crcce_claimauditlogs"
+                f"?$filter=crcce_claimid eq '{claim_id}'"
+                f"&$orderby=createdon asc"
+            )
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=self._headers(token)) as resp:
+                    result = await resp.json()
+                    rows = result.get("value", [])
+                    return [
+                        {
+                            "agent_name": r.get("crcce_agentname"),
+                            "action": r.get("crcce_action"),
+                            "timestamp": r.get("createdon"),
+                            "details": r.get("crcce_details")
+                        }
+                        for r in rows
+                    ]
+        except Exception as e:
+            logger.error("dataverse_get_audit_logs_failed", error=str(e))
+            return []
+
     async def get_claim(self, claim_id: str) -> Optional[dict]:
         if self.settings.demo_mode:
             return _demo_store.get(claim_id)
@@ -434,7 +623,9 @@ class DataverseClient:
                 async with session.get(url, headers=self._headers(token)) as resp:
                     result = await resp.json()
                     values = result.get("value", [])
-                    return values[0] if values else None
+                    if values:
+                        return await self.map_claim_from_dataverse(values[0], token)
+                    return None
         except Exception as e:
             logger.error("dataverse_get_claim_failed", error=str(e))
             return _demo_store.get(claim_id)
@@ -449,7 +640,15 @@ class DataverseClient:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=self._headers(token)) as resp:
                     result = await resp.json()
-                    return result.get("value", [])
+                    rows = result.get("value", [])
+                    mapped_rows = []
+                    for r in rows:
+                        try:
+                            mapped_rows.append(await self.map_claim_from_dataverse(r, token))
+                        except Exception as ex:
+                            logger.error("row_map_failed", row_id=r.get("crcce_claimid"), error=str(ex))
+                            mapped_rows.append(r)
+                    return mapped_rows
         except Exception as e:
             logger.error("dataverse_get_all_claims_failed", error=str(e))
             return list(_demo_store.values())

@@ -178,8 +178,8 @@ class SupportAgent(BaseAgent):
             c_id = get_val(claim_data, 'claim_id') or get_val(claim_data, 'crcce_name') or claim_id
             submission = get_val(claim_data, 'submission')
             claimant = get_val(submission, 'claimant')
-            claimant_name = get_val(claimant, 'name') or get_val(claim_data, 'crcce_claimantname') or "Customer"
-            claim_amount = get_val(submission, 'claim_amount') or get_val(claim_data, 'crcce_claimamount') or 0
+            claimant_name = get_val(claimant, 'name') or get_val(claim_data, 'claimant_name') or get_val(claim_data, 'crcce_claimantname') or "Customer"
+            claim_amount = get_val(submission, 'claim_amount') or get_val(claim_data, 'claim_amount') or get_val(claim_data, 'crcce_claimamount') or 0
             
             # Resolve status
             status_obj = get_val(claim_data, 'status') or get_val(claim_data, 'crcce_status') or "Processing"
@@ -187,12 +187,12 @@ class SupportAgent(BaseAgent):
             
             # Resolve decision
             adj = get_val(claim_data, 'adjudication_result')
-            decision_obj = get_val(adj, 'decision') or get_val(claim_data, 'crcce_decision') or ""
+            decision_obj = get_val(adj, 'decision') or get_val(claim_data, 'decision') or get_val(claim_data, 'crcce_decision') or ""
             decision_val = decision_obj.value if hasattr(decision_obj, 'value') else str(decision_obj)
             
             # Resolve rationale
-            rationale_val = get_val(adj, 'rationale') or get_val(claim_data, 'crcce_rationale') or ""
-            payout_val = get_val(adj, 'final_payout') or get_val(claim_data, 'crcce_approvedamount') or 0
+            rationale_val = get_val(adj, 'rationale') or get_val(claim_data, 'rationale') or get_val(claim_data, 'crcce_rationale') or ""
+            payout_val = get_val(adj, 'final_payout') or get_val(claim_data, 'final_payout') or get_val(claim_data, 'crcce_approvedamount') or 0
             
             # Resolve missing fields
             missing_result = get_val(claim_data, 'missing_info_result')

@@ -70,6 +70,50 @@ async def get_claim_status(claim_id: str):
     claim = await get_orchestrator().get_claim_status(claim_id)
     if not claim:
         raise HTTPException(status_code=404, detail=f"Claim {claim_id} not found")
+        
+    # Map raw/mapped Dataverse record to the status model schema
+    if "claim_id" in claim:
+        status_val = claim.get("status", "Processing")
+        decision = claim.get("decision")
+        claim_amount = claim.get("claim_amount", 0.0)
+        approved_amount = claim.get("final_payout", 0.0)
+        rationale = claim.get("rationale") or ""
+        fraud_score = claim.get("fraud_score", 0)
+        
+        risk_level = "LOW"
+        if fraud_score >= 60:
+            risk_level = "HIGH"
+        elif fraud_score >= 30:
+            risk_level = "MEDIUM"
+
+        has_missing = status_val == "Pending Information"
+        missing_fields = ["Supporting Documents"] if has_missing else []
+
+        return {
+            "claim_id": claim["claim_id"],
+            "status": status_val,
+            "claim_type": claim.get("claim_type"),
+            "priority": claim.get("priority", "Medium"),
+            "submitted_at": claim.get("submitted_at"),
+            "updated_at": claim.get("updated_at"),
+            "adjudication": {
+                "decision": decision or "Escalate",
+                "claim_amount": claim_amount,
+                "approved_amount": approved_amount,
+                "deductible_applied": max(0.0, claim_amount - approved_amount),
+                "final_payout": approved_amount,
+                "rationale": rationale,
+                "confidence_score": 0.95,
+                "supporting_evidence": []
+            },
+            "missing_info": {
+                "has_missing_info": has_missing,
+                "missing_fields": missing_fields,
+                "follow_up_message": f"Please upload missing documents for claim {claim_id}."
+            },
+            "fraud_summary": f"Score: {fraud_score}/100, Risk: {risk_level}",
+            "audit_trail_count": 0,
+        }
     return claim
 
 
@@ -78,7 +122,91 @@ async def get_claim_full(claim_id: str):
     """Get full claim context including all agent outputs."""
     if claim_id in _processing_contexts:
         return _processing_contexts[claim_id].model_dump(mode="json")
-    raise HTTPException(status_code=404, detail=f"Claim {claim_id} not found in active context")
+        
+    # Fallback: retrieve from Dataverse and reconstruct standard ClaimContext structure
+    try:
+        from backend.tools.dataverse import DataverseClient
+        dv = DataverseClient()
+        claim_data = await dv.get_claim(claim_id)
+        if claim_data:
+            docs = await dv.get_claim_documents(claim_id)
+            audits = await dv.get_claim_audit_logs(claim_id)
+            
+            status = claim_data.get("status", "Processing")
+            decision = claim_data.get("decision")
+            fraud_score = claim_data.get("fraud_score", 0)
+            approved_amount = claim_data.get("final_payout", 0.0)
+            claim_amount = claim_data.get("claim_amount", 0.0)
+            rationale = claim_data.get("rationale") or ""
+            
+            risk_level = "LOW"
+            if fraud_score >= 60:
+                risk_level = "HIGH"
+            elif fraud_score >= 30:
+                risk_level = "MEDIUM"
+                
+            has_missing = status == "Pending Information"
+            missing_fields = ["Supporting Documents"] if has_missing else []
+            
+            return {
+                "claim_id": claim_id,
+                "status": status,
+                "claim_type": claim_data.get("claim_type", "Health"),
+                "priority": claim_data.get("priority", "Medium"),
+                "created_at": claim_data.get("submitted_at"),
+                "updated_at": claim_data.get("updated_at"),
+                "submission": {
+                    "policy_id": claim_data.get("policy_id"),
+                    "claimant": {
+                        "name": claim_data.get("claimant_name"),
+                        "email": claim_data.get("claimant_email"),
+                        "phone": ""
+                    },
+                    "claim_type": claim_data.get("claim_type"),
+                    "claim_amount": claim_amount,
+                    "incident_date": claim_data.get("incident_date"),
+                    "description": claim_data.get("description"),
+                    "channel": claim_data.get("channel", "Web")
+                },
+                "validation_result": {
+                    "is_valid": decision != "Reject",
+                    "policy_active": True,
+                    "claim_type_covered": True,
+                    "within_sum_insured": True,
+                    "deductible_applicable": True,
+                    "coverage_amount": claim_amount,
+                    "deductible_amount": max(0.0, claim_amount - approved_amount),
+                    "validation_notes": rationale,
+                    "confidence": 0.95
+                },
+                "fraud_result": {
+                    "fraud_score": fraud_score,
+                    "risk_level": risk_level,
+                    "flags": [],
+                    "reasoning": rationale
+                },
+                "missing_info_result": {
+                    "has_missing_info": has_missing,
+                    "missing_fields": missing_fields,
+                    "follow_up_message": f"Please upload missing documents for claim {claim_id}."
+                },
+                "adjudication_result": {
+                    "decision": decision or "Escalate",
+                    "claim_amount": claim_amount,
+                    "approved_amount": approved_amount,
+                    "deductible_applied": max(0.0, claim_amount - approved_amount),
+                    "final_payout": approved_amount,
+                    "rationale": rationale,
+                    "confidence_score": 0.95,
+                    "supporting_evidence": []
+                },
+                "extracted_documents": docs,
+                "audit_trail": audits
+            }
+    except Exception as e:
+        logger.error("get_claim_full_fallback_failed", claim_id=claim_id, error=str(e))
+        
+    raise HTTPException(status_code=404, detail=f"Claim {claim_id} not found in active context or Dataverse")
 
 
 @router.get("/", response_model=list)
@@ -103,7 +231,13 @@ async def list_claims():
     ]
     if not all_claims:
         return in_memory
-    return in_memory or all_claims
+        
+    # Map/merge lists using claim_id to avoid duplicates
+    merged = {c["claim_id"]: c for c in all_claims}
+    for c in in_memory:
+        merged[c["claim_id"]] = c
+        
+    return list(merged.values())
 
 
 @router.post("/{claim_id}/human-decision", response_model=dict)
