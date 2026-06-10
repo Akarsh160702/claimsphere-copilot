@@ -185,7 +185,43 @@ class AISearchClient:
             return [dict(r) for r in results]
         except Exception as e:
             logger.error("policy_search_failed", error=str(e))
-            return []
+            # Fall back to local policies list search
+            try:
+                from backend.data_seeder import POLICIES_DIR
+                import os
+                import json
+                local_policies = []
+                if os.path.exists(POLICIES_DIR):
+                    for filename in os.listdir(POLICIES_DIR):
+                        if filename.endswith(".json"):
+                            with open(os.path.join(POLICIES_DIR, filename), "r", encoding="utf-8") as f:
+                                local_policies.append(json.load(f))
+                # Simple keyword search fallback
+                query_words = set(query.lower().split())
+                matched = []
+                for p in local_policies:
+                    if policy_type and p.get("policy_type") != policy_type:
+                        continue
+                    # score matches
+                    score = 0
+                    p_str = json.dumps(p).lower()
+                    for word in query_words:
+                        if word in p_str:
+                            score += 1
+                    if score > 0:
+                        matched.append((score, p))
+                matched.sort(key=lambda x: x[0], reverse=True)
+                if matched:
+                    return [p for score, p in matched[:3]]
+            except Exception as ex:
+                logger.error("policy_search_fallback_failed", error=str(ex))
+            
+            # Final fallback to DEMO_POLICIES
+            results = []
+            for policy in DEMO_POLICIES.values():
+                if policy_type is None or policy.get("policy_type") == policy_type:
+                    results.append(policy)
+            return results[:3]
 
     async def index_policy(self, policy: dict) -> bool:
         if self.settings.demo_mode:

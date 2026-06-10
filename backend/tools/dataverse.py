@@ -425,9 +425,10 @@ class DataverseClient:
 
         try:
             token = await self._get_token()
+            primary = await self._get_primary_name_attr(token)
             url = (
                 f"{self._base_url}/api/data/v9.2/crcce_claims"
-                f"?$filter=crcce_claimnumber eq '{claim_id}'"
+                f"?$filter={primary} eq '{claim_id}'"
             )
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=self._headers(token)) as resp:

@@ -31,5 +31,24 @@ async def initiate_payment(body: dict):
 
 @router.get("/policies")
 async def list_policies():
+    from backend.config import get_settings
+    settings = get_settings()
+    if not settings.demo_mode:
+        import os
+        import json
+        from backend.data_seeder import POLICIES_DIR
+        policies = []
+        if os.path.exists(POLICIES_DIR):
+            for filename in os.listdir(POLICIES_DIR):
+                if filename.endswith(".json"):
+                    filepath = os.path.join(POLICIES_DIR, filename)
+                    try:
+                        with open(filepath, "r", encoding="utf-8") as f:
+                            policies.append(json.load(f))
+                    except Exception:
+                        pass
+        if policies:
+            return policies
+
     from backend.tools.ai_search import DEMO_POLICIES
     return list(DEMO_POLICIES.values())
