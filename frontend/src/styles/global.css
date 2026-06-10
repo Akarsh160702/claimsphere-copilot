@@ -1,6 +1,12 @@
 :root {
   color-scheme: dark;
+}
+
+/* Dark theme variables */
+:root[data-theme="dark"] {
   --cs-bg-base: #090d17;
+  --cs-bg-gradient-top: #0b111f;
+  --cs-bg-gradient-bottom: #070a12;
   --cs-sidebar: #070a12;
   --cs-glass-fill: rgba(255, 255, 255, 0.04);
   --cs-glass-fill-strong: rgba(255, 255, 255, 0.065);
@@ -11,6 +17,31 @@
   --cs-text-muted: #5c6a82;
   --cs-brand: #2e90fa;
   --cs-brand-ring: rgba(46, 144, 250, 0.35);
+  
+  --cs-gradient-ambient-1: radial-gradient(1100px 720px at 16% -12%, rgba(46, 144, 250, 0.11), transparent 58%);
+  --cs-gradient-ambient-2: radial-gradient(900px 600px at 100% 4%, rgba(46, 144, 250, 0.05), transparent 55%);
+  --cs-gradient-bg: linear-gradient(180deg, #0b111f 0%, #070a12 100%);
+}
+
+/* Light theme variables */
+:root[data-theme="light"] {
+  --cs-bg-base: #ffffff;
+  --cs-bg-gradient-top: #fafbfc;
+  --cs-bg-gradient-bottom: #f5f7fa;
+  --cs-sidebar: #fafbfc;
+  --cs-glass-fill: rgba(0, 0, 0, 0.02);
+  --cs-glass-fill-strong: rgba(0, 0, 0, 0.04);
+  --cs-glass-border: rgba(0, 0, 0, 0.08);
+  --cs-glass-highlight: rgba(255, 255, 255, 0.95);
+  --cs-text-primary: #1a2332;
+  --cs-text-secondary: #4a5568;
+  --cs-text-muted: #718096;
+  --cs-brand: #0078d4;
+  --cs-brand-ring: rgba(0, 120, 212, 0.25);
+  
+  --cs-gradient-ambient-1: radial-gradient(1100px 720px at 16% -12%, rgba(0, 120, 212, 0.04), transparent 58%);
+  --cs-gradient-ambient-2: radial-gradient(900px 600px at 100% 4%, rgba(0, 120, 212, 0.02), transparent 55%);
+  --cs-gradient-bg: linear-gradient(180deg, #fafbfc 0%, #f5f7fa 100%);
 }
 
 * {
@@ -37,11 +68,12 @@ body {
   background-color: var(--cs-bg-base);
   /* One restrained ambient glow + a quiet base gradient. */
   background-image:
-    radial-gradient(1100px 720px at 16% -12%, rgba(46, 144, 250, 0.11), transparent 58%),
-    radial-gradient(900px 600px at 100% 4%, rgba(46, 144, 250, 0.05), transparent 55%),
-    linear-gradient(180deg, #0b111f 0%, #070a12 100%);
+    var(--cs-gradient-ambient-1),
+    var(--cs-gradient-ambient-2),
+    var(--cs-gradient-bg);
   background-attachment: fixed;
   overflow: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ── Scrollbars ── */
@@ -52,14 +84,28 @@ body {
 *::-webkit-scrollbar-track {
   background: transparent;
 }
-*::-webkit-scrollbar-thumb {
+
+/* Dark theme scrollbar */
+:root[data-theme="dark"] *::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.09);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
-*::-webkit-scrollbar-thumb:hover {
+:root[data-theme="dark"] *::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.16);
+  background-clip: content-box;
+}
+
+/* Light theme scrollbar */
+:root[data-theme="light"] *::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+:root[data-theme="light"] *::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.18);
   background-clip: content-box;
 }
 
@@ -76,8 +122,8 @@ body {
   background:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.05) 0%,
-      rgba(255, 255, 255, 0.018) 100%
+      var(--cs-glass-fill-strong) 0%,
+      var(--cs-glass-fill) 100%
     ),
     var(--cs-bg-base);
   background-blend-mode: normal;
@@ -87,8 +133,23 @@ body {
   border-radius: 16px;
   box-shadow:
     0 1px 0 0 var(--cs-glass-highlight) inset,
+    0 12px 32px -14px rgba(0, 0, 0, 0.35),
+    0 2px 8px -3px rgba(0, 0, 0, 0.15);
+}
+
+/* Light theme gets a softer shadow, dark gets the deep one */
+:root[data-theme="dark"] .cs-glass {
+  box-shadow:
+    0 1px 0 0 var(--cs-glass-highlight) inset,
     0 12px 32px -14px rgba(0, 0, 0, 0.65),
     0 2px 8px -3px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-theme="light"] .cs-glass {
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.9) inset,
+    0 4px 16px -4px rgba(0, 0, 0, 0.08),
+    0 1px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 /* ── Focus rings — accessible + premium ── */
@@ -144,12 +205,24 @@ a:focus-visible,
     background-position: 480px 0;
   }
 }
-.cs-skeleton {
+:root[data-theme="dark"] .cs-skeleton {
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0.03) 25%,
     rgba(255, 255, 255, 0.09) 37%,
     rgba(255, 255, 255, 0.03) 63%
+  );
+  background-size: 960px 100%;
+  animation: cs-shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+:root[data-theme="light"] .cs-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.04) 25%,
+    rgba(0, 0, 0, 0.08) 37%,
+    rgba(0, 0, 0, 0.04) 63%
   );
   background-size: 960px 100%;
   animation: cs-shimmer 1.4s ease-in-out infinite;
@@ -172,10 +245,9 @@ textarea::placeholder {
   }
 }
 
-/* ── Select dropdown styling for dark theme ── */
+/* ── Select dropdown styling — theme-aware ── */
 select {
   /* Custom dropdown arrow */
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2397A6BE' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right 10px center;
   background-size: 16px;
@@ -187,34 +259,97 @@ select {
   appearance: none;
 }
 
-/* Dropdown option styling - dark theme */
-select option {
-  background-color: #0E1422; /* bgElevated */
-  color: #ECF1FA; /* textPrimary */
+/* Dark theme arrow + options */
+:root[data-theme="dark"] select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2397A6BE' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+:root[data-theme="dark"] select option {
+  background-color: #0E1422;
+  color: #ECF1FA;
   padding: 8px;
 }
 
-/* Firefox-specific dropdown background */
+/* Light theme arrow + options */
+:root[data-theme="light"] select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234A5568' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+:root[data-theme="light"] select option {
+  background-color: #ffffff;
+  color: #1A2332;
+  padding: 8px;
+}
+
+/* Firefox-specific */
 @-moz-document url-prefix() {
-  select {
-    background-color: rgba(255, 255, 255, 0.040);
+  :root[data-theme="dark"] select {
+    background-color: rgba(255, 255, 255, 0.04);
   }
-  select option {
+  :root[data-theme="dark"] select option {
     background-color: #0E1422;
+  }
+  :root[data-theme="light"] select {
+    background-color: #ffffff;
+  }
+  :root[data-theme="light"] select option {
+    background-color: #ffffff;
   }
 }
 
-/* Chrome/Edge/Safari dropdown background */
+/* Chrome/Edge/Safari — checked option highlight */
 @supports (-webkit-appearance: none) {
-  select option {
+  :root[data-theme="dark"] select option {
     background-color: #0E1422;
     color: #ECF1FA;
   }
-  select option:checked {
+  :root[data-theme="dark"] select option:checked {
     background-color: #2E90FA;
     color: #fff;
   }
-  select option:hover {
-    background-color: rgba(46, 144, 250, 0.13);
+  :root[data-theme="light"] select option {
+    background-color: #ffffff;
+    color: #1A2332;
+  }
+  :root[data-theme="light"] select option:checked {
+    background-color: #0078D4;
+    color: #fff;
   }
 }
+
+/* ── Recharts tooltip styling — theme-aware ── */
+.recharts-tooltip-wrapper {
+  outline: none !important;
+}
+
+:root[data-theme="dark"] .recharts-default-tooltip {
+  background-color: rgba(12, 20, 38, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 10px !important;
+  color: var(--cs-text-primary) !important;
+}
+
+:root[data-theme="light"] .recharts-default-tooltip {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(0, 0, 0, 0.10) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.12) !important;
+  color: var(--cs-text-primary) !important;
+}
+
+.recharts-tooltip-label {
+  color: var(--cs-text-primary) !important;
+  font-weight: 600 !important;
+  margin-bottom: 4px !important;
+}
+
+.recharts-tooltip-item {
+  color: var(--cs-text-primary) !important;
+}
+
+.recharts-tooltip-item-name,
+.recharts-tooltip-item-separator,
+.recharts-tooltip-item-value {
+  color: var(--cs-text-primary) !important;
+}
+

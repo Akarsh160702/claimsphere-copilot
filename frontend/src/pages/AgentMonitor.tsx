@@ -11,18 +11,19 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard } from "@/components/common/GlassCard";
 import { Skeleton } from "@/components/common/Skeleton";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { palette } from "@/theme/tokens";
+import { getPalette } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import { formatINR } from "@/utils/format";
 import { apiClient } from "@/api/client";
 import type { ClaimFull, ClaimListItem } from "@/api/types";
 
-const PIPELINE = [
-  { key: "RouterAgent",      short: "Router",     color: palette.brand },
-  { key: "DocumentAgent",    short: "Doc",        color: "#22D3EE" },
-  { key: "ValidationAgent",  short: "Validate",   color: palette.success },
-  { key: "FraudAgent",       short: "Fraud",      color: palette.warning },
-  { key: "MissingInfoAgent", short: "Info",       color: "#9B6DFF" },
-  { key: "AdjudicationAgent",short: "Adjudicate", color: palette.info },
+const PIPELINE_KEYS = [
+  { key: "RouterAgent",       short: "Router"    },
+  { key: "DocumentAgent",     short: "Doc"       },
+  { key: "ValidationAgent",   short: "Validate"  },
+  { key: "FraudAgent",        short: "Fraud"     },
+  { key: "MissingInfoAgent",  short: "Info"      },
+  { key: "AdjudicationAgent", short: "Adjudicate"},
 ];
 
 async function fetchRecentFull(): Promise<ClaimFull[]> {
@@ -38,6 +39,18 @@ async function fetchRecentFull(): Promise<ClaimFull[]> {
 
 export function AgentMonitor() {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
+
+  // Build PIPELINE with theme-aware colors at render time
+  const PIPELINE = [
+    { key: "RouterAgent",       short: "Router",      color: palette.brand },
+    { key: "DocumentAgent",     short: "Doc",         color: "#22D3EE" },
+    { key: "ValidationAgent",   short: "Validate",    color: palette.success },
+    { key: "FraudAgent",        short: "Fraud",       color: palette.warning },
+    { key: "MissingInfoAgent",  short: "Info",        color: "#9B6DFF" },
+    { key: "AdjudicationAgent", short: "Adjudicate",  color: palette.info },
+  ];
 
   const { data: claims = [], isLoading } = useQuery({
     queryKey: ["agent-monitor"],
@@ -47,7 +60,7 @@ export function AgentMonitor() {
   });
 
   // Aggregate stats
-  const agentStats = PIPELINE.map(({ key }) => {
+  const agentStats = PIPELINE_KEYS.map(({ key }) => {
     const runs = claims.flatMap((c) => c.audit_trail.filter((a) => a.agent_name === key && a.action !== "DEMO_SEED"));
     const successes = runs.filter((a) => !a.action.includes("FAIL")).length;
     return { key, runs: runs.length, successes, rate: runs.length ? Math.round((successes / runs.length) * 100) : 100 };
@@ -62,9 +75,9 @@ export function AgentMonitor() {
     <AppLayout title="Agent Monitor" subtitle="Real-time view of the multi-agent AI pipeline">
       {/* Stats row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 16 }}>
-        <StatCard label="Claims Monitored" value={totalClaims} color={palette.brand} />
-        <StatCard label="Avg Agent Steps" value={avgAgents} color={palette.success} />
-        <StatCard label="Pipeline Agents" value={6} color="#9B6DFF" />
+        <StatCard label="Claims Monitored" value={totalClaims} color={palette.brand} palette={palette} />
+        <StatCard label="Avg Agent Steps" value={avgAgents} color={palette.success} palette={palette} />
+        <StatCard label="Pipeline Agents" value={6} color="#9B6DFF" palette={palette} />
       </div>
 
       {/* Agent success rate bar */}
@@ -113,7 +126,7 @@ export function AgentMonitor() {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {claims.map((claim) => (
-            <PipelineCard key={claim.claim_id} claim={claim} onView={() => navigate(`/claims/${claim.claim_id}`)} />
+            <PipelineCard key={claim.claim_id} claim={claim} onView={() => navigate(`/claims/${claim.claim_id}`)} palette={palette} pipeline={PIPELINE} />
           ))}
         </div>
       )}
@@ -121,7 +134,12 @@ export function AgentMonitor() {
   );
 }
 
-function PipelineCard({ claim, onView }: { claim: ClaimFull; onView: () => void }) {
+function PipelineCard({ claim, onView, palette, pipeline }: {
+  claim: ClaimFull;
+  onView: () => void;
+  palette: ReturnType<typeof getPalette>;
+  pipeline: Array<{ key: string; short: string; color: string }>;
+}) {
   const agentMap = new Map(
     claim.audit_trail
       .filter((a) => a.action !== "DEMO_SEED")
@@ -145,7 +163,7 @@ function PipelineCard({ claim, onView }: { claim: ClaimFull; onView: () => void 
 
         {/* Pipeline dots */}
         <div style={{ display: "flex", gap: 6, alignItems: "center", flex: 1 }}>
-          {PIPELINE.map(({ key, short, color }) => {
+          {pipeline.map(({ key, short, color }) => {
             const entry = agentMap.get(key);
             const done = !!entry && entry.action !== "DEMO_SEED";
             const failed = done && entry.action.includes("FAIL");
@@ -195,7 +213,10 @@ function PipelineCard({ claim, onView }: { claim: ClaimFull; onView: () => void 
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+function StatCard({ label, value, color, palette }: {
+  label: string; value: number; color: string;
+  palette: ReturnType<typeof getPalette>;
+}) {
   return (
     <GlassCard style={{ padding: "16px 20px" }}>
       <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: palette.textMuted, marginBottom: 8 }}>

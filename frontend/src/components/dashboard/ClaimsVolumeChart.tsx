@@ -9,9 +9,10 @@ import {
 } from "recharts";
 import { useMemo } from "react";
 import type { ClaimListItem } from "@/api/types";
-import { palette } from "@/theme/tokens";
+import { getPalette } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import { localDateKey } from "@/utils/format";
-import { chartTooltipStyle } from "./chartTheme";
+import { getChartTooltipStyle, getTooltipLabelStyle, getTooltipItemStyle } from "./chartTheme";
 
 /** Builds a 14-day approved/escalated/rejected volume series from claims,
  *  ending on today (the viewer's local date). */
@@ -44,6 +45,8 @@ function buildSeries(claims: ClaimListItem[]) {
 }
 
 export function ClaimsVolumeChart({ claims }: { claims: ClaimListItem[] }) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
   const data = useMemo(() => buildSeries(claims), [claims]);
 
   return (
@@ -63,10 +66,19 @@ export function ClaimsVolumeChart({ claims }: { claims: ClaimListItem[] }) {
             </linearGradient>
           ))}
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+        <CartesianGrid 
+          strokeDasharray="3 3" 
+          stroke={theme === 'dark' ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"} 
+          vertical={false} 
+        />
         <XAxis dataKey="label" tick={{ fill: palette.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={18} />
         <YAxis tick={{ fill: palette.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={34} />
-        <Tooltip contentStyle={chartTooltipStyle} cursor={{ stroke: "rgba(255,255,255,0.15)" }} />
+        <Tooltip 
+          contentStyle={getChartTooltipStyle(theme)} 
+          labelStyle={getTooltipLabelStyle(theme)}
+          itemStyle={getTooltipItemStyle(theme)}
+          cursor={{ stroke: theme === 'dark' ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)" }} 
+        />
         <Area type="monotone" dataKey="Approved" stroke={palette.success} strokeWidth={2} fill="url(#aApproved)" />
         <Area type="monotone" dataKey="Escalated" stroke={palette.warning} strokeWidth={2} fill="url(#aEscalated)" />
         <Area type="monotone" dataKey="Rejected" stroke={palette.danger} strokeWidth={2} fill="url(#aRejected)" />

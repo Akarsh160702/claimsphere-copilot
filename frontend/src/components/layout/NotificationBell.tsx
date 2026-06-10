@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Alert20Regular, ChevronRight16Regular } from "@fluentui/react-icons";
-import { palette, typeColor } from "@/theme/tokens";
+import { getPalette, typeColor } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import { formatINR, timeAgo } from "@/utils/format";
 import { useClaimsData } from "@/hooks/useClaimsData";
 import type { ClaimListItem } from "@/api/types";
@@ -22,6 +23,8 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { claims } = useClaimsData();
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
 
   const escalated = claims
     .filter(isEscalated)
@@ -69,7 +72,7 @@ export function NotificationBell() {
               padding: "0 4px",
               borderRadius: 999,
               background: palette.warning,
-              color: "#1a1205",
+              color: theme === "light" ? "#7c4d00" : "#1a1205",
               fontSize: 10.5,
               fontWeight: 800,
               display: "flex",
@@ -173,7 +176,10 @@ export function NotificationBell() {
                           fontFamily: "inherit",
                           transition: "background 0.12s",
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background =
+                            theme === "light" ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.03)")
+                        }
                         onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
                       >
                         <span

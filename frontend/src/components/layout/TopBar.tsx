@@ -1,7 +1,9 @@
 import { Search20Regular } from "@fluentui/react-icons";
-import { palette } from "@/theme/tokens";
+import { getPalette } from "@/theme/tokens";
 import { useAppStore } from "@/store/useAppStore";
+import { useTheme } from "@/contexts/ThemeContext";
 import { NotificationBell } from "./NotificationBell";
+import { ThemeToggle } from "@/components/common/ThemeToggle";
 
 interface TopBarProps {
   title: string;
@@ -12,6 +14,8 @@ const IS_MAC =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
 export function TopBar({ title, subtitle }: TopBarProps) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
   const dataSource = useAppStore((s) => s.dataSource);
   const setCommandOpen = useAppStore((s) => s.setCommandOpen);
 
@@ -86,6 +90,8 @@ export function TopBar({ title, subtitle }: TopBarProps) {
             {IS_MAC ? "⌘K" : "Ctrl K"}
           </kbd>
         </button>
+
+        <ThemeToggle />
 
         <NotificationBell />
 

@@ -7,7 +7,8 @@ import {
   BrainCircuit20Regular,
   Shield20Regular,
 } from "@fluentui/react-icons";
-import { palette, shadow } from "@/theme/tokens";
+import { getPalette, shadow } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useAppStore } from "@/store/useAppStore";
 
 const PILLARS = [
@@ -25,6 +26,8 @@ const STATS = [
 export function Landing() {
   const navigate = useNavigate();
   const backendOnline = useAppStore((s) => s.backendOnline);
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
 
   return (
     <div
@@ -49,7 +52,9 @@ export function Landing() {
           width: 800,
           height: 800,
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(46,144,250,0.18), transparent 62%)",
+          background: theme === "light"
+            ? "radial-gradient(circle, rgba(0,120,212,0.08), transparent 62%)"
+            : "radial-gradient(circle, rgba(46,144,250,0.18), transparent 62%)",
           filter: "blur(20px)",
           pointerEvents: "none",
         }}
@@ -67,7 +72,7 @@ export function Landing() {
           zIndex: 1,
         }}
       >
-        <BrandMark />
+        <BrandMark palette={palette} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: palette.textSecondary }}>
           <span
             className={backendOnline ? "cs-pulse-dot" : undefined}
@@ -296,7 +301,7 @@ export function Landing() {
   );
 }
 
-function BrandMark() {
+function BrandMark({ palette }: { palette: ReturnType<typeof getPalette> }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <div

@@ -5,7 +5,8 @@ import {
   CheckmarkCircle20Regular,
 } from "@fluentui/react-icons";
 import { motion } from "framer-motion";
-import { palette, motionTokens } from "@/theme/tokens";
+import { getPalette, motionTokens } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import { formatINR } from "@/utils/format";
 import type { DashboardMetrics } from "@/api/types";
 
@@ -26,6 +27,9 @@ const AI_TAT_SECONDS = 3.1; // measured pipeline turnaround
 const BASELINE_STP = 62; // industry-baseline STP % when live volume is too thin
 
 export function ImpactBand({ metrics }: { metrics: DashboardMetrics }) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
+  
   // Below ~5 claims the live STP rate isn't statistically meaningful (e.g. right
   // after a demo reset), so fall back to a labelled industry baseline rather
   // than projecting ₹0. With real volume we use the live rate verbatim.

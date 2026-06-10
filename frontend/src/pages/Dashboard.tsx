@@ -20,11 +20,14 @@ import { TypeBar } from "@/components/dashboard/TypeBar";
 import { ClaimsTable } from "@/components/dashboard/ClaimsTable";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { useClaimsData } from "@/hooks/useClaimsData";
-import { palette } from "@/theme/tokens";
+import { getPalette } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import { formatINR } from "@/utils/format";
 import { computeDeltas } from "@/utils/deltas";
 
 export function Dashboard() {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
   const { claims, metrics, isLoading } = useClaimsData();
   const d = computeDeltas(claims, metrics);
 

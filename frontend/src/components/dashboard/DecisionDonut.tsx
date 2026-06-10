@@ -1,9 +1,13 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { palette } from "@/theme/tokens";
-import { chartTooltipStyle } from "./chartTheme";
+import { getPalette } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
+import { getChartTooltipStyle, getTooltipLabelStyle, getTooltipItemStyle } from "./chartTheme";
 import type { DashboardMetrics } from "@/api/types";
 
 export function DecisionDonut({ metrics }: { metrics: DashboardMetrics }) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
+  
   const data = [
     { name: "Approved", value: metrics.approved, color: palette.success },
     { name: "Rejected", value: metrics.rejected, color: palette.danger },
@@ -27,7 +31,11 @@ export function DecisionDonut({ metrics }: { metrics: DashboardMetrics }) {
               <Cell key={d.name} fill={d.color} />
             ))}
           </Pie>
-          <Tooltip contentStyle={chartTooltipStyle} />
+          <Tooltip 
+            contentStyle={getChartTooltipStyle(theme)} 
+            labelStyle={getTooltipLabelStyle(theme)}
+            itemStyle={getTooltipItemStyle(theme)}
+          />
         </PieChart>
       </ResponsiveContainer>
       <div

@@ -8,7 +8,8 @@ import {
   ArrowRight16Regular,
   type FluentIcon,
 } from "@fluentui/react-icons";
-import { palette, typeColor, statusColor } from "@/theme/tokens";
+import { getPalette, typeColor, statusColor } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useAppStore } from "@/store/useAppStore";
 import { useClaimsData } from "@/hooks/useClaimsData";
 import { NAV_ITEMS } from "./navItems";
@@ -39,6 +40,8 @@ export function CommandPalette() {
   const setOpen = useAppStore((s) => s.setCommandOpen);
   const navigate = useNavigate();
   const { claims } = useClaimsData();
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
 
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -143,6 +146,21 @@ export function CommandPalette() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, results, active, setOpen]);
 
+  // Build kbd style inline so it can reference palette
+  const kbdStyle: React.CSSProperties = {
+    fontSize: 10.5,
+    fontWeight: 600,
+    fontFamily: "inherit",
+    padding: "2px 6px",
+    borderRadius: 5,
+    background: theme === "light" ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)",
+    border: `1px solid ${palette.glassBorder}`,
+    color: palette.textMuted,
+    minWidth: 16,
+    textAlign: "center",
+    lineHeight: 1.4,
+  };
+
   // Render section headers inline by tracking group changes.
   let lastGroup = "";
 
@@ -159,7 +177,7 @@ export function CommandPalette() {
             position: "fixed",
             inset: 0,
             zIndex: 1000,
-            background: "rgba(4, 7, 14, 0.62)",
+            background: theme === "light" ? "rgba(15, 23, 42, 0.45)" : "rgba(4, 7, 14, 0.62)",
             backdropFilter: "blur(4px)",
             WebkitBackdropFilter: "blur(4px)",
             display: "flex",
@@ -228,7 +246,7 @@ export function CommandPalette() {
                     fontSize: 13.5,
                   }}
                 >
-                  No matches for “{query}”. Try a claim ID, a name, or a page.
+                  No matches for "{query}". Try a claim ID, a name, or a page.
                 </div>
               ) : (
                 results.map((r, i) => {
@@ -349,9 +367,9 @@ export function CommandPalette() {
                 color: palette.textMuted,
               }}
             >
-              <Hint keys={["↑", "↓"]} label="navigate" />
-              <Hint keys={["↵"]} label="open" />
-              <Hint keys={["esc"]} label="close" />
+              <Hint keys={["↑", "↓"]} label="navigate" kbdStyle={kbdStyle} />
+              <Hint keys={["↵"]} label="open" kbdStyle={kbdStyle} />
+              <Hint keys={["esc"]} label="close" kbdStyle={kbdStyle} />
               <span style={{ marginLeft: "auto", color: palette.textMuted }}>
                 {claims.length} claims indexed
               </span>
@@ -364,7 +382,7 @@ export function CommandPalette() {
   );
 }
 
-function Hint({ keys, label }: { keys: string[]; label: string }) {
+function Hint({ keys, label, kbdStyle }: { keys: string[]; label: string; kbdStyle: React.CSSProperties }) {
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
       {keys.map((k) => (
@@ -376,17 +394,3 @@ function Hint({ keys, label }: { keys: string[]; label: string }) {
     </span>
   );
 }
-
-const kbdStyle: React.CSSProperties = {
-  fontSize: 10.5,
-  fontWeight: 600,
-  fontFamily: "inherit",
-  padding: "2px 6px",
-  borderRadius: 5,
-  background: "rgba(255,255,255,0.05)",
-  border: `1px solid ${palette.glassBorder}`,
-  color: palette.textMuted,
-  minWidth: 16,
-  textAlign: "center",
-  lineHeight: 1.4,
-};

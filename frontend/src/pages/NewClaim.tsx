@@ -16,7 +16,8 @@ import {
 } from "@fluentui/react-icons";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard } from "@/components/common/GlassCard";
-import { palette, radius, typeColor } from "@/theme/tokens";
+import { getPalette, radius, typeColor } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import { formatINR } from "@/utils/format";
 import { submitClaimSync, uploadDocument } from "@/api/claims";
 import type { ClaimType, Channel, ClaimFull } from "@/api/types";
@@ -54,6 +55,8 @@ const AGENTS = [
 
 // ── Main component ────────────────────────────────────────────────────────────
 export function NewClaim() {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>(0);
   const [form, setForm] = useState<FormState>({
@@ -226,8 +229,12 @@ export function NewClaim() {
                       multiline />
                   </div>
                   <div>
-                    <label style={labelStyle}>Channel</label>
-                    <select value={form.channel} onChange={(e) => set("channel", e.target.value as Channel)} style={selectStyle}>
+                    <label style={{
+                      display: "block", fontSize: 11.5, fontWeight: 600,
+                      letterSpacing: "0.05em", textTransform: "uppercase",
+                      color: palette.textMuted, marginBottom: 6,
+                    }}>Channel</label>
+                    <select value={form.channel} onChange={(e) => set("channel", e.target.value as Channel)} style={selectStyle(palette, theme)}>
                       {(["Web", "Email", "Teams", "Phone", "CSR"] as Channel[]).map((c) => (
                         <option key={c} value={c} style={{
                           background: palette.bgElevated,
@@ -388,6 +395,8 @@ export function NewClaim() {
 
 // ── Result card ───────────────────────────────────────────────────────────────
 function ResultCard({ result, onNew, onView }: { result: ClaimFull; onNew: () => void; onView: () => void }) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
   const adj = result.adjudication_result;
   const fraud = result.fraud_result;
   const decision = adj?.decision ?? "Escalate";
@@ -441,10 +450,10 @@ function ResultCard({ result, onNew, onView }: { result: ClaimFull; onNew: () =>
       </div>
 
       <div style={{ display: "flex", gap: 10 }}>
-        <button onClick={onView} style={{ ...btnStyle, background: palette.brandSoft, border: `1px solid ${palette.brand}50`, color: palette.brand }}>
+        <button onClick={onView} style={{ ...btnStyle(palette), background: palette.brandSoft, border: `1px solid ${palette.brand}50`, color: palette.brand }}>
           View Full Detail
         </button>
-        <button onClick={onNew} style={{ ...btnStyle, background: palette.glassFill, border: `1px solid ${palette.glassBorder}`, color: palette.textSecondary }}>
+        <button onClick={onNew} style={{ ...btnStyle(palette), background: palette.glassFill, border: `1px solid ${palette.glassBorder}`, color: palette.textSecondary }}>
           Submit Another
         </button>
       </div>
@@ -454,6 +463,8 @@ function ResultCard({ result, onNew, onView }: { result: ClaimFull; onNew: () =>
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 function Metric({ label, value, color: _color }: { label: string; value: string; color?: string }) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
   const color = _color;
   return (
     <div style={{ padding: "12px 14px", borderRadius: 8, background: palette.glassFill, border: `1px solid ${palette.glassBorder}` }}>
@@ -469,15 +480,32 @@ function FormField({ label, value, onChange, placeholder, type = "text", multili
   label: string; value: string; onChange: (v: string) => void;
   placeholder?: string; type?: string; multiline?: boolean; hint?: string;
 }) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
+  
   return (
     <div>
-      <label style={labelStyle}>{label}</label>
+      <label style={{
+        display: "block", fontSize: 11.5, fontWeight: 600,
+        letterSpacing: "0.05em", textTransform: "uppercase",
+        color: palette.textMuted, marginBottom: 6,
+      }}>{label}</label>
       {multiline ? (
         <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-          rows={3} style={{ ...inputStyle, resize: "vertical" }} />
+          rows={3} style={{
+            width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 13.5,
+            background: palette.glassFill, border: `1px solid ${palette.glassBorder}`,
+            color: palette.textPrimary, outline: "none", boxSizing: "border-box",
+            fontFamily: "inherit", resize: "vertical",
+          }} />
       ) : (
         <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-          style={inputStyle} />
+          style={{
+            width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 13.5,
+            background: palette.glassFill, border: `1px solid ${palette.glassBorder}`,
+            color: palette.textPrimary, outline: "none", boxSizing: "border-box",
+            fontFamily: "inherit",
+          }} />
       )}
       {hint && <div style={{ fontSize: 11, color: palette.textMuted, marginTop: 4 }}>{hint}</div>}
     </div>
@@ -488,6 +516,9 @@ function NavBtn({ onClick, label, icon, disabled, secondary, iconLeft }: {
   onClick: () => void; label: string; icon: React.ReactNode;
   disabled?: boolean; secondary?: boolean; iconLeft?: boolean;
 }) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
+  
   return (
     <button onClick={onClick} disabled={disabled} style={{
       display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px",
@@ -502,35 +533,25 @@ function NavBtn({ onClick, label, icon, disabled, secondary, iconLeft }: {
   );
 }
 
-const labelStyle: React.CSSProperties = {
-  display: "block", fontSize: 11.5, fontWeight: 600,
-  letterSpacing: "0.05em", textTransform: "uppercase",
-  color: palette.textMuted, marginBottom: 6,
+const selectStyle = (palette: ReturnType<typeof getPalette>, theme: 'dark' | 'light'): React.CSSProperties => {
+  const arrowColor = theme === 'light' ? '%234A5568' : '%2397A6BE';
+  return {
+    width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 13.5,
+    background: palette.glassFill, border: `1px solid ${palette.glassBorder}`,
+    color: palette.textPrimary, outline: "none", boxSizing: "border-box",
+    fontFamily: "inherit", cursor: "pointer",
+    WebkitAppearance: "none",
+    MozAppearance: "none",
+    appearance: "none",
+    backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='${arrowColor}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 10px center",
+    backgroundSize: "16px",
+    paddingRight: "36px",
+  };
 };
 
-const inputStyle: React.CSSProperties = {
-  width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 13.5,
-  background: palette.glassFill, border: `1px solid ${palette.glassBorder}`,
-  color: palette.textPrimary, outline: "none", boxSizing: "border-box",
-  fontFamily: "inherit",
-};
-
-const selectStyle: React.CSSProperties = {
-  width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 13.5,
-  background: palette.glassFill, border: `1px solid ${palette.glassBorder}`,
-  color: palette.textPrimary, outline: "none", boxSizing: "border-box",
-  fontFamily: "inherit", cursor: "pointer",
-  WebkitAppearance: "none", /* Remove default Chrome/Safari styling */
-  MozAppearance: "none", /* Remove default Firefox styling */
-  appearance: "none", /* Standard property */
-  backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2397A6BE' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
-  backgroundRepeat: "no-repeat",
-  backgroundPosition: "right 10px center",
-  backgroundSize: "16px",
-  paddingRight: "36px", /* Space for custom arrow */
-};
-
-const btnStyle: React.CSSProperties = {
+const btnStyle = (_palette: ReturnType<typeof getPalette>): React.CSSProperties => ({
   padding: "9px 18px", borderRadius: radius.md, fontSize: 13.5,
   fontWeight: 600, cursor: "pointer", transition: "opacity 0.15s",
-};
+});

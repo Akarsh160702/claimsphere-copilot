@@ -9,7 +9,10 @@
  * for decoration. Claim-type hues live in a single controlled categorical set.
  */
 
-export const palette = {
+export type Theme = 'dark' | 'light';
+
+// Dark theme palette (original)
+const darkPalette = {
   // Surfaces — deep, near-neutral navy with just enough blue to feel "Azure"
   bgBase: "#090D17",
   bgGradientTop: "#0B111F",
@@ -48,6 +51,51 @@ export const palette = {
   // Harmonious categorical ramp for charts (blue-led, lightly desaturated)
   chart: ["#2E90FA", "#34D399", "#FBBF55", "#F4625A", "#8B86F5", "#2DD4BF"],
 } as const;
+
+// Light theme palette (premium, clean, professional)
+const lightPalette = {
+  // Surfaces — pure white with subtle warm undertones
+  bgBase: "#FFFFFF",
+  bgGradientTop: "#FAFBFC",
+  bgGradientBottom: "#F5F7FA",
+  bgElevated: "#FFFFFF",
+  sidebar: "#FAFBFC",
+
+  // Glass (for light theme - subtle shadows)
+  glassFill: "rgba(0, 0, 0, 0.02)",
+  glassFillStrong: "rgba(0, 0, 0, 0.04)",
+  glassBorder: "rgba(0, 0, 0, 0.08)",
+  glassBorderStrong: "rgba(0, 0, 0, 0.12)",
+  glassHighlight: "rgba(255, 255, 255, 0.95)",
+
+  // Text
+  textPrimary: "#1A2332",
+  textSecondary: "#4A5568",
+  textMuted: "#718096",
+
+  // Brand — Microsoft / Azure blue (adjusted for light theme)
+  brand: "#0078D4",
+  brandStrong: "#005A9E",
+  brandHover: "#106EBE",
+  brandSoft: "rgba(0, 120, 212, 0.08)",
+
+  // Semantic — status (adjusted for light theme readability)
+  success: "#10B981",
+  successSoft: "rgba(16, 185, 129, 0.10)",
+  warning: "#F59E0B",
+  warningSoft: "rgba(245, 158, 11, 0.10)",
+  danger: "#EF4444",
+  dangerSoft: "rgba(239, 68, 68, 0.10)",
+  info: "#0EA5E9",
+  infoSoft: "rgba(14, 165, 233, 0.10)",
+
+  // Charts (vibrant but professional for light backgrounds)
+  chart: ["#0078D4", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4"],
+} as const;
+
+export const palette = darkPalette; // Default export for backwards compatibility
+
+export const getPalette = (theme: Theme) => theme === 'light' ? lightPalette : darkPalette;
 
 /**
  * Controlled categorical colors for claim types. Centralized so every page

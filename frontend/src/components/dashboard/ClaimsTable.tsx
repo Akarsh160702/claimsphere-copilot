@@ -11,7 +11,8 @@ import {
 import { useState } from "react";
 import { ArrowSortUp16Regular, ArrowSortDown16Regular } from "@fluentui/react-icons";
 import type { ClaimListItem } from "@/api/types";
-import { palette, typeColor } from "@/theme/tokens";
+import { getPalette, typeColor } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import { formatINR, formatDate } from "@/utils/format";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { FraudMeter } from "@/components/common/FraudMeter";
@@ -21,6 +22,8 @@ const col = createColumnHelper<ClaimListItem>();
 export function ClaimsTable({ claims }: { claims: ClaimListItem[] }) {
   const navigate = useNavigate();
   const [sorting, setSorting] = useState<SortingState>([]);
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
 
   const columns = useMemo(
     () => [
@@ -91,7 +94,7 @@ export function ClaimsTable({ claims }: { claims: ClaimListItem[] }) {
         ),
       }),
     ],
-    [],
+    [palette], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const table = useReactTable({
@@ -143,7 +146,10 @@ export function ClaimsTable({ claims }: { claims: ClaimListItem[] }) {
               key={row.id}
               onClick={() => navigate(`/claims/${row.original.claim_id}`)}
               style={{ cursor: "pointer", transition: "background 0.12s" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background =
+                  theme === "light" ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)")
+              }
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               {row.getVisibleCells().map((cell) => (

@@ -2,7 +2,8 @@ import { motion } from "framer-motion";
 import { Wrench24Regular } from "@fluentui/react-icons";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard } from "@/components/common/GlassCard";
-import { palette } from "@/theme/tokens";
+import { getPalette } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface PlaceholderPageProps {
   title: string;
@@ -13,6 +14,9 @@ interface PlaceholderPageProps {
 
 /** Polished "next sprint" placeholder for pages not yet implemented. */
 export function PlaceholderPage({ title, subtitle, blurb, planned }: PlaceholderPageProps) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
+
   return (
     <AppLayout title={title} subtitle={subtitle}>
       <div style={{ display: "flex", justifyContent: "center", paddingTop: 40 }}>

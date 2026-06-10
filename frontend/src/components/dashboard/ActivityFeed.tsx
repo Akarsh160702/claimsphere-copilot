@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { ClaimListItem } from "@/api/types";
-import { palette, statusColor } from "@/theme/tokens";
+import { getPalette, statusColor } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import { formatINR, timeAgo } from "@/utils/format";
 
 /** Derives a human-readable activity stream from the most recent claims. */
@@ -25,6 +26,8 @@ function buildActivity(claims: ClaimListItem[]) {
 
 export function ActivityFeed({ claims }: { claims: ClaimListItem[] }) {
   const items = useMemo(() => buildActivity(claims), [claims]);
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
 
   return (
     <div>

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import type { CSSProperties, ReactNode } from "react";
 import { motionTokens, shadow } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface GlassCardProps {
   children: ReactNode;
@@ -22,6 +23,8 @@ export function GlassCard({
   className,
   onClick,
 }: GlassCardProps) {
+  const { theme } = useTheme();
+  
   return (
     <motion.div
       className={`cs-glass ${className ?? ""}`}
@@ -31,7 +34,11 @@ export function GlassCard({
       transition={{ ...motionTokens.spring, delay }}
       whileHover={
         interactive
-          ? { y: -3, boxShadow: shadow.cardHover, borderColor: "rgba(255,255,255,0.14)" }
+          ? { 
+              y: -3, 
+              boxShadow: shadow.cardHover, 
+              borderColor: theme === 'dark' ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.16)"
+            }
           : undefined
       }
       style={{

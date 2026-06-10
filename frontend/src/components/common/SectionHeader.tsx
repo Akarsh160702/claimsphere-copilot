@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { palette } from "@/theme/tokens";
+import { getPalette } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface SectionHeaderProps {
   title: string;
@@ -8,6 +9,9 @@ interface SectionHeaderProps {
 }
 
 export function SectionHeader({ title, live, right }: SectionHeaderProps) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
+  
   return (
     <div
       style={{

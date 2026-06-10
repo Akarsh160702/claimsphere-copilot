@@ -5,7 +5,8 @@ import { Search20Regular, Bot20Regular } from "@fluentui/react-icons";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard } from "@/components/common/GlassCard";
 import { Skeleton } from "@/components/common/Skeleton";
-import { palette, typeColor } from "@/theme/tokens";
+import { getPalette, typeColor } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import { formatINR } from "@/utils/format";
 import { askSupport, fetchPolicies } from "@/api/claims";
 
@@ -20,6 +21,8 @@ const SUGGESTED = [
 export function PolicySearch() {
   const [query, setQuery] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState("POL-HEALTH-001");
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
 
   const { data: policies = [], isLoading: policiesLoading } = useQuery({
     queryKey: ["policies"],
@@ -37,6 +40,17 @@ export function PolicySearch() {
     if (q) setQuery(q);
     setTimeout(() => search(), 0);
   }
+
+  const labelStyle: React.CSSProperties = {
+    display: "block", fontSize: 11, fontWeight: 700, letterSpacing: "0.07em",
+    textTransform: "uppercase", color: palette.textMuted, marginBottom: 7,
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 13.5,
+    background: palette.glassFill, border: `1px solid ${palette.glassBorder}`,
+    color: palette.textPrimary, outline: "none", boxSizing: "border-box", fontFamily: "inherit",
+  };
 
   return (
     <AppLayout title="Policy Search" subtitle="Ask questions about policies using Azure AI Search + RAG">
@@ -179,6 +193,7 @@ export function PolicySearch() {
                 policy={p}
                 selected={selectedPolicy === String(p.policy_id)}
                 onClick={() => setSelectedPolicy(String(p.policy_id))}
+                palette={palette}
               />
             ))
           )}
@@ -188,8 +203,9 @@ export function PolicySearch() {
   );
 }
 
-function PolicyCard({ policy, selected, onClick }: {
+function PolicyCard({ policy, selected, onClick, palette }: {
   policy: Record<string, unknown>; selected: boolean; onClick: () => void;
+  palette: ReturnType<typeof getPalette>;
 }) {
   const color = typeColor(String(policy.policy_type));
 
@@ -227,14 +243,3 @@ function PolicyCard({ policy, selected, onClick }: {
     </GlassCard>
   );
 }
-
-const labelStyle: React.CSSProperties = {
-  display: "block", fontSize: 11, fontWeight: 700, letterSpacing: "0.07em",
-  textTransform: "uppercase", color: palette.textMuted, marginBottom: 7,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 13.5,
-  background: palette.glassFill, border: `1px solid ${palette.glassBorder}`,
-  color: palette.textPrimary, outline: "none", boxSizing: "border-box", fontFamily: "inherit",
-};

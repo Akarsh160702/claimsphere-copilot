@@ -14,11 +14,14 @@ import { GlassCard } from "@/components/common/GlassCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { FraudMeter } from "@/components/common/FraudMeter";
 import { Skeleton } from "@/components/common/Skeleton";
-import { palette, radius, statusColor } from "@/theme/tokens";
+import { getPalette, radius, statusColor } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import { formatINR, formatDate } from "@/utils/format";
 import { fetchClaimFull, recordHumanDecision } from "@/api/claims";
 
 export function ClaimDetail() {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -66,7 +69,7 @@ export function ClaimDetail() {
     <AppLayout title="Claim Not Found" subtitle="">
       <GlassCard style={{ maxWidth: 400, textAlign: "center", padding: 40 }}>
         <p style={{ color: palette.textSecondary }}>Claim not found. It may have been cleared from memory on server restart.</p>
-        <button onClick={() => navigate("/claims")} style={outlineBtnStyle}>Back to Claims</button>
+        <button onClick={() => navigate("/claims")} style={outlineBtnStyle(palette)}>Back to Claims</button>
       </GlassCard>
     </AppLayout>
   );
@@ -87,7 +90,7 @@ export function ClaimDetail() {
     >
       {/* Back + status header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-        <button onClick={() => navigate(-1)} style={{ ...outlineBtnStyle, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+        <button onClick={() => navigate(-1)} style={{ ...outlineBtnStyle(palette), padding: "6px 12px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
           <ArrowLeft20Regular /> Back
         </button>
         <StatusBadge value={claim.status ?? "Processing"} />
@@ -192,7 +195,7 @@ export function ClaimDetail() {
               <InfoRow label="Incident Date" value={claim.submission.incident_date} />
               <InfoRow label="Channel" value={claim.submission.channel} />
               <div>
-                <div style={smallLabelStyle}>Description</div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: palette.textMuted, marginBottom: 4 }}>Description</div>
                 <p style={{ margin: "4px 0 0", fontSize: 13, color: palette.textSecondary, lineHeight: 1.65 }}>
                   {claim.submission.description}
                 </p>
@@ -262,7 +265,7 @@ export function ClaimDetail() {
               )}
               {adj.supporting_evidence.length > 0 && (
                 <div style={{ marginTop: 12 }}>
-                  <div style={smallLabelStyle}>Supporting Evidence</div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: palette.textMuted, marginBottom: 8 }}>Supporting Evidence</div>
                   {adj.supporting_evidence.map((e, i) => (
                     <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 6, fontSize: 12.5, color: palette.textSecondary }}>
                       <span style={{ width: 5, height: 5, borderRadius: "50%", background: palette.success, flexShrink: 0, marginTop: 5 }} />
@@ -333,6 +336,9 @@ export function ClaimDetail() {
 
 // ── Agent timeline ────────────────────────────────────────────────────────────
 function AgentTimeline({ audit }: { audit: { agent_name: string; action: string; timestamp: string; details: Record<string, unknown> }[] }) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
+  
   if (!audit.length) return <p style={{ fontSize: 13, color: palette.textMuted }}>No agent data available.</p>;
 
   const isSeedAgent = (action: string) => action === "DEMO_SEED";
@@ -377,12 +383,18 @@ function AgentTimeline({ audit }: { audit: { agent_name: string; action: string;
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 function MetricTile({ icon, label, value, valueColor }: { icon: React.ReactNode; label: string; value: string; valueColor?: string }) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
+  
   return (
     <GlassCard style={{ padding: "14px 16px" }}>
       <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
         <div style={{ color: palette.textMuted, marginTop: 2 }}>{icon}</div>
         <div>
-          <div style={smallLabelStyle}>{label}</div>
+          <div style={{
+            fontSize: 10.5, fontWeight: 700, letterSpacing: "0.07em",
+            textTransform: "uppercase", color: palette.textMuted,
+          }}>{label}</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: valueColor ?? palette.textPrimary, marginTop: 4 }}>{value}</div>
         </div>
       </div>
@@ -391,6 +403,9 @@ function MetricTile({ icon, label, value, valueColor }: { icon: React.ReactNode;
 }
 
 function CheckRow({ label, ok }: { label: string; ok: boolean }) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
+  
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
       <span style={{ color: palette.textSecondary }}>{label}</span>
@@ -400,15 +415,24 @@ function CheckRow({ label, ok }: { label: string; ok: boolean }) {
 }
 
 function SmallMetric({ label, value, color }: { label: string; value: string; color: string }) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
+  
   return (
     <div style={{ padding: "8px 12px", borderRadius: 6, background: palette.glassFill, border: `1px solid ${palette.glassBorder}` }}>
-      <div style={smallLabelStyle}>{label}</div>
+      <div style={{
+        fontSize: 10.5, fontWeight: 700, letterSpacing: "0.07em",
+        textTransform: "uppercase", color: palette.textMuted,
+      }}>{label}</div>
       <div style={{ fontSize: 14, fontWeight: 700, color, marginTop: 4 }}>{value}</div>
     </div>
   );
 }
 
 function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
+  
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, fontSize: 13 }}>
       <span style={{ color: palette.textMuted, flexShrink: 0 }}>{label}</span>
@@ -418,6 +442,9 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
+  
   return (
     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: palette.textMuted, marginBottom: 14 }}>
       {children}
@@ -439,13 +466,8 @@ function DecisionBtn({ label, color, softColor, onClick, loading }: {
   );
 }
 
-const smallLabelStyle: React.CSSProperties = {
-  fontSize: 10.5, fontWeight: 700, letterSpacing: "0.07em",
-  textTransform: "uppercase", color: palette.textMuted,
-};
-
-const outlineBtnStyle: React.CSSProperties = {
+const outlineBtnStyle = (palette: ReturnType<typeof getPalette>): React.CSSProperties => ({
   padding: "7px 14px", borderRadius: radius.md, fontSize: 13, fontWeight: 600,
   cursor: "pointer", background: palette.glassFill, border: `1px solid ${palette.glassBorder}`,
   color: palette.textSecondary, transition: "all 0.12s",
-};
+});

@@ -1,10 +1,13 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { ShieldTask24Filled } from "@fluentui/react-icons";
-import { palette, shadow } from "@/theme/tokens";
+import { getPalette, shadow } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import { NAV_ITEMS } from "./navItems";
 import { useAppStore } from "@/store/useAppStore";
 
 export function Sidebar() {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
   const navigate = useNavigate();
   const backendOnline = useAppStore((s) => s.backendOnline);
   const dataSource = useAppStore((s) => s.dataSource);
@@ -90,7 +93,7 @@ export function Sidebar() {
           marginTop: 16,
           padding: "12px 12px",
           borderRadius: 12,
-          background: "rgba(255,255,255,0.03)",
+          background: palette.glassFill,
           border: `1px solid ${palette.glassBorder}`,
         }}
       >
@@ -124,6 +127,8 @@ export function Sidebar() {
 }
 
 function StatusLine({ color, label }: { color: string; label: string }) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
       <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }} />

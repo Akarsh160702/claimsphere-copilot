@@ -13,7 +13,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard } from "@/components/common/GlassCard";
 import { FraudMeter } from "@/components/common/FraudMeter";
 import { Skeleton } from "@/components/common/Skeleton";
-import { palette, radius } from "@/theme/tokens";
+import { getPalette, radius } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import { formatINR, formatDate } from "@/utils/format";
 import { apiClient } from "@/api/client";
 import { recordHumanDecision } from "@/api/claims";
@@ -33,6 +34,8 @@ async function fetchEscalatedClaims(): Promise<ClaimFull[]> {
 export function ReviewQueue() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
 
   const { data: claims = [], isLoading } = useQuery({
     queryKey: ["review-queue"],
@@ -91,6 +94,8 @@ function ReviewCard({ claim, delay, onView, onDecision }: {
   const [notes, setNotes] = useState("");
   const [decided, setDecided] = useState(false);
   const [decisionMade, setDecisionMade] = useState<string | null>(null);
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
 
   const adj = claim.adjudication_result;
   const fraud = claim.fraud_result;

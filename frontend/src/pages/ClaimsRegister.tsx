@@ -5,7 +5,8 @@ import { GlassCard } from "@/components/common/GlassCard";
 import { ClaimsTable } from "@/components/dashboard/ClaimsTable";
 import { Skeleton } from "@/components/common/Skeleton";
 import { useClaimsData } from "@/hooks/useClaimsData";
-import { palette } from "@/theme/tokens";
+import { getPalette } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 import type { ClaimType, ClaimStatus } from "@/api/types";
 
 const TYPES: (ClaimType | "All")[] = ["All", "Health", "Motor", "Property", "Travel"];
@@ -16,6 +17,8 @@ export function ClaimsRegister() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<ClaimType | "All">("All");
   const [statusFilter, setStatusFilter] = useState<ClaimStatus | "All">("All");
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
 
   const filtered = useMemo(() => {
     return claims.filter((c) => {
@@ -59,7 +62,7 @@ export function ClaimsRegister() {
             <Filter20Regular style={{ color: palette.textMuted, fontSize: 15 }} />
             <div style={{ display: "flex", gap: 6 }}>
               {TYPES.map((t) => (
-                <Chip key={t} label={t} active={typeFilter === t} onClick={() => setTypeFilter(t as ClaimType | "All")} />
+                <Chip key={t} label={t} active={typeFilter === t} onClick={() => setTypeFilter(t as ClaimType | "All")} palette={palette} />
               ))}
             </div>
           </div>
@@ -68,7 +71,7 @@ export function ClaimsRegister() {
         {/* Status filter row */}
         <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
           {STATUSES.map((s) => (
-            <Chip key={s} label={s} active={statusFilter === s} onClick={() => setStatusFilter(s as ClaimStatus | "All")} small />
+            <Chip key={s} label={s} active={statusFilter === s} onClick={() => setStatusFilter(s as ClaimStatus | "All")} small palette={palette} />
           ))}
         </div>
       </GlassCard>
@@ -103,8 +106,9 @@ export function ClaimsRegister() {
   );
 }
 
-function Chip({ label, active, onClick, small }: {
+function Chip({ label, active, onClick, small, palette }: {
   label: string; active: boolean; onClick: () => void; small?: boolean;
+  palette: ReturnType<typeof getPalette>;
 }) {
   return (
     <button

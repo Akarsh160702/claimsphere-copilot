@@ -1,7 +1,8 @@
 import type { FluentIcon } from "@fluentui/react-icons";
 import { ArrowUp12Filled, ArrowDown12Filled } from "@fluentui/react-icons";
 import { GlassCard } from "@/components/common/GlassCard";
-import { palette } from "@/theme/tokens";
+import { getPalette } from "@/theme/tokens";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface KpiCardProps {
   label: string;
@@ -14,6 +15,8 @@ interface KpiCardProps {
 }
 
 export function KpiCard({ label, value, delta, trend = "neutral", icon: Icon, accent, delay }: KpiCardProps) {
+  const { theme } = useTheme();
+  const palette = getPalette(theme);
   const trendColor =
     trend === "up" ? palette.success : trend === "down" ? palette.danger : palette.textMuted;
 
