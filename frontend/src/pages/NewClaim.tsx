@@ -229,7 +229,11 @@ export function NewClaim() {
                     <label style={labelStyle}>Channel</label>
                     <select value={form.channel} onChange={(e) => set("channel", e.target.value as Channel)} style={selectStyle}>
                       {(["Web", "Email", "Teams", "Phone", "CSR"] as Channel[]).map((c) => (
-                        <option key={c} value={c}>{c}</option>
+                        <option key={c} value={c} style={{
+                          background: palette.bgElevated,
+                          color: palette.textPrimary,
+                          padding: "8px",
+                        }}>{c}</option>
                       ))}
                     </select>
                   </div>
@@ -519,7 +523,7 @@ const selectStyle: React.CSSProperties = {
   WebkitAppearance: "none", /* Remove default Chrome/Safari styling */
   MozAppearance: "none", /* Remove default Firefox styling */
   appearance: "none", /* Standard property */
-  backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+  backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2397A6BE' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
   backgroundRepeat: "no-repeat",
   backgroundPosition: "right 10px center",
   backgroundSize: "16px",
